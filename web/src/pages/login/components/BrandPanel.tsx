@@ -1,16 +1,11 @@
-import { BrandMark } from "@/components/BrandMark";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 export function BrandPanel() {
   return (
     <section
       aria-labelledby="login-brand-heading"
-      className="bloom-overlay-anim relative flex flex-col justify-between gap-10 py-2 md:py-6"
+      className="bloom-overlay-anim relative flex flex-col justify-center gap-10 py-2 md:py-6"
     >
-      <header className="flex items-center gap-3">
-        <BrandMark size={36} />
-        <span className="font-serif text-[22px] font-medium italic tracking-tight">auth.pior.ca</span>
-      </header>
-
       <div>
         <h1
           id="login-brand-heading"
@@ -25,9 +20,11 @@ export function BrandPanel() {
         <p className="mt-7 max-w-md text-[15px] leading-[1.65] text-ink-2">
           Sign in with your household account to continue to the app that sent you here.
         </p>
-      </div>
 
-      <div aria-hidden="true" />
+        <div className="mt-8">
+          <ThemeSwitcher />
+        </div>
+      </div>
     </section>
   );
 }

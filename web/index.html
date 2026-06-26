@@ -10,6 +10,17 @@
       rel="stylesheet"
     />
     <title>auth.pior.ca</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a flash of the default.
+      (function () {
+        try {
+          var t = localStorage.getItem("pior-theme");
+          if (t === "bloom" || t === "slate") {
+            document.documentElement.setAttribute("data-theme", t);
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
