@@ -11,3 +11,43 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* Brand mark (logo). App-specific: the petal colors are the brand, not theme tokens. */
+.bloom-flower {
+  position: relative;
+}
+
+.bloom-flower .petal {
+  position: absolute;
+  width: 41%;
+  height: 65%;
+  left: 29.5%;
+  top: 0;
+  border-radius: 50% 50% 50% 50% / 80% 80% 20% 20%;
+  transform-origin: 50% 100%;
+}
+
+.bloom-flower .p1 {
+  transform: rotate(0deg);
+  background: #cae0a8;
+}
+.bloom-flower .p2 {
+  transform: rotate(120deg);
+  background: #f8d7c0;
+}
+.bloom-flower .p3 {
+  transform: rotate(240deg);
+  background: #dcd3f0;
+}
+
+.bloom-flower .brand-core {
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  left: 35%;
+  top: 35%;
+  background: var(--cream);
+  border: 1.5px solid var(--ink);
+  border-radius: 9999px;
+  z-index: 2;
+}
