@@ -15,7 +15,7 @@
       (function () {
         try {
           var t = localStorage.getItem("pior-theme");
-          if (t === "bloom" || t === "slate") {
+          if (t && new RegExp("^[a-z0-9-]+$").test(t)) {
             document.documentElement.setAttribute("data-theme", t);
           }
         } catch (e) {}
