@@ -36,11 +36,11 @@ export function LoginFormPanel({
   return (
     <section
       aria-labelledby="login-form-heading"
-      className="bloom-overlay-anim flex w-full items-center justify-center py-2 md:py-10"
+      className="theme-overlay-anim flex w-full items-center justify-center py-2 md:py-10"
       style={{ animationDelay: "120ms" }}
     >
       <div className="relative w-full max-w-110">
-        <div className="bloom-glass relative rounded-[28px] p-7 sm:p-9">
+        <div className="theme-glass relative rounded-[28px] p-7 sm:p-9">
           <h2
             id="login-form-heading"
             className="mb-7 font-serif text-[26px] leading-[1.05] tracking-tight text-ink"

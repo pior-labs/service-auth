@@ -7,14 +7,14 @@ export function LoginPage() {
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-cream font-sans text-ink">
-      <div className="bloom-mesh" aria-hidden="true">
-        <div className="bloom-blob b1" />
-        <div className="bloom-blob b2" />
-        <div className="bloom-blob b3" />
-        <div className="bloom-blob b4" />
-        <div className="bloom-blob b5" />
+      <div className="theme-mesh" aria-hidden="true">
+        <div className="theme-blob b1" />
+        <div className="theme-blob b2" />
+        <div className="theme-blob b3" />
+        <div className="theme-blob b4" />
+        <div className="theme-blob b5" />
       </div>
-      <div className="bloom-grain" aria-hidden="true" />
+      <div className="theme-grain" aria-hidden="true" />
 
       <main
         id="main-content"

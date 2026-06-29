@@ -4,7 +4,7 @@ export function BrandPanel() {
   return (
     <section
       aria-labelledby="login-brand-heading"
-      className="bloom-overlay-anim relative flex flex-col justify-center gap-10 py-2 md:py-6"
+      className="theme-overlay-anim relative flex flex-col justify-center gap-10 py-2 md:py-6"
     >
       <div>
         <h1

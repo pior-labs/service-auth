@@ -54,7 +54,7 @@ export function ThemeSwitcher() {
         <div
           role="menu"
           aria-label="Theme"
-          className="bloom-overlay-anim absolute left-0 top-[calc(100%+10px)] z-20 w-65 overflow-hidden rounded-2xl border border-ink/10 bg-frost/95 p-2 shadow-[0_28px_60px_-24px_rgba(45,36,24,0.5),inset_0_1px_0_rgba(var(--frost-rgb),0.7)] backdrop-blur"
+          className="theme-overlay-anim absolute left-0 top-[calc(100%+10px)] z-20 w-65 overflow-hidden rounded-2xl border border-ink/10 bg-frost/95 p-2 shadow-[0_28px_60px_-24px_rgba(45,36,24,0.5),inset_0_1px_0_rgba(var(--frost-rgb),0.7)] backdrop-blur"
         >
           <div className="px-3 pb-1.5 pt-1 font-serif text-[12px] italic tracking-wide text-ink-2">
             Theme
