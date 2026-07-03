@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@ipior/custom-tailwind-shadcn-themes/styles.css";
+@import "@pior-labs/design-system/styles.css";
 
 * {
   border-color: var(--border);

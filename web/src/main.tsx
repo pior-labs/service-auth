@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "@ipior/custom-tailwind-shadcn-themes";
+import { ThemeProvider } from "@pior-labs/design-system";
 import { App } from "./app.js";
 import "./app.css";
 
