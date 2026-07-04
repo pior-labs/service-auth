@@ -5,9 +5,9 @@ export const oauthClients = [
     clientId: "finlens",
     clientSecret: env.finlensClientSecret,
     name: "FinLens",
-    uri: "https://finlens.pior.ca",
+    uri: "https://finance.optiplex.pior.ca",
     redirectUris: [
-      "https://finlens.pior.ca/api/auth/oauth2/callback/auth-pior",
+      "https://finance.optiplex.pior.ca/api/auth/oauth2/callback/auth-pior",
       "http://localhost:3001/api/auth/oauth2/callback/auth-pior",
     ],
   },
