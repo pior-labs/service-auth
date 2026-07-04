@@ -8,7 +8,7 @@ export const oauthClients = [
     uri: "https://finance.optiplex.pior.ca",
     redirectUris: [
       "https://finance.optiplex.pior.ca/api/auth/oauth2/callback/auth-pior",
-      "http://localhost:3001/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:5174/api/auth/oauth2/callback/auth-pior",
     ],
   },
 ] as const;
