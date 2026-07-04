@@ -23,7 +23,7 @@ The provider is configured with:
 
 - `loginPage: "/sign-in"`, served by the SPA fallback
 - scopes: `openid`, `profile`, `email`, `offline_access`
-- trusted clients cached by ID: `finlens`
+- trusted clients cached by ID: `finlens` (the only registered client today)
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
 
@@ -39,20 +39,85 @@ ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` cu
 6. Build the web app with `pnpm --filter @auth/web build` and serve `web/dist` from Caddy.
 7. Start the API with `docker compose up -d --build api`.
 
+## OpenID Connect endpoints
+
+Clients discover the provider through the OIDC discovery document, which is served under the Better Auth base path (not the domain root):
+
+```text
+<issuer>/.well-known/openid-configuration
+```
+
+where `<issuer>` is `<BETTER_AUTH_URL>/api/auth`. The document advertises these endpoints, all rooted at the issuer:
+
+- `authorization_endpoint`: `/oauth2/authorize`
+- `token_endpoint`: `/oauth2/token`
+- `userinfo_endpoint`: `/oauth2/userinfo`
+- `jwks_uri`: `/jwks` (ID tokens are signed with EdDSA; clients verify against this key set)
+- `end_session_endpoint`: `/oauth2/end-session`
+
+In production the issuer is `https://auth.pior.ca/api/auth`. Caddy must route `/api/auth/*` and `/.well-known/*` to the auth API and serve the built web app for `/sign-in`.
+
+## Local verification (localhost)
+
+The intended local setup mirrors production's single front door: run both processes with `pnpm dev`. The Vite dev server on `http://localhost:5173` serves the `/sign-in` SPA and proxies `/api/*` to the API on `http://localhost:3000`, so `http://localhost:5173` is the local issuer origin.
+
+1. Ensure Postgres is running and the `DATABASE_URL` database exists.
+2. `pnpm db:migrate` then `pnpm db:seed`.
+3. `pnpm dev` (starts API on `:3000` and web on `:5173`).
+4. Point the client app (e.g. FinLens running on `http://localhost:3001`) at the discovery URL `http://localhost:5173/api/auth/.well-known/openid-configuration`.
+
+The full authorization-code + PKCE flow (`authorize` -> `/sign-in` -> `token` -> `userinfo`, plus `refresh_token`) has been verified end to end against a local client on `http://localhost:3001`.
+
+Baseline service checks:
+
+- `pnpm typecheck`
+- `pnpm build`
+- `GET /health`, which returns `{ "ok": true }` once the API process starts.
+
+## Adding an OAuth client
+
+Every app that uses this SSO provider must be registered as a trusted OAuth client. To add one (using a placeholder app name `myapp`):
+
+1. **Register the client secret env var.**
+   - Add `MYAPP_CLIENT_SECRET=...` to `.env` (and a placeholder line to `.env.example`). Generate with `openssl rand -base64 32`.
+   - Expose it in `api/src/env.ts`:
+     ```ts
+     myappClientSecret: requiredEnv("MYAPP_CLIENT_SECRET", "change-me-myapp"),
+     ```
+
+2. **Add the client to `api/src/oauth-clients.ts`.** Give it a stable `clientId`, its production `uri`, and the *exact* allowed callback URLs. For a Better Auth client app the callback path is `/api/auth/oauth2/callback/<provider-id>`; include both production and localhost entries so the same client works in local testing:
+   ```ts
+   {
+     clientId: "myapp",
+     clientSecret: env.myappClientSecret,
+     name: "MyApp",
+     uri: "https://myapp.pior.ca",
+     redirectUris: [
+       "https://myapp.pior.ca/api/auth/oauth2/callback/auth-pior",
+       "http://localhost:3001/api/auth/oauth2/callback/auth-pior",
+     ],
+   },
+   ```
+   `trustedClientIds` is derived from this array, so no other code change is needed.
+
+3. **Re-seed.** Run `pnpm db:seed`. The client is upserted with `authorization_code` + `refresh_token` grants, `client_secret_post` auth, PKCE required, and consent skipped. The seed **hashes the client secret** (SHA-256, base64url) before storing it, because the provider verifies incoming secrets against the hashed form; storing plaintext would make every token exchange fail with `invalid_client`.
+
+4. **Configure the client app** with the issuer/discovery URL (see above), the registered `clientId` and its plaintext secret, the exact callback URL, and scopes `openid profile email offline_access`.
+
+To rotate a secret, change the env value and re-run `pnpm db:seed` (the upsert re-hashes and overwrites). To retire a client, remove it from `oauth-clients.ts` and delete its row: `DELETE FROM "oauthClient" WHERE "clientId" = 'myapp';` (removing it from the array alone does not delete the stored row).
+
 ## Seeding
 
-The seed script creates exactly two users and upserts the three trusted OAuth clients.
+The seed script creates exactly two users and upserts the trusted OAuth clients defined in `api/src/oauth-clients.ts`.
 
 Required user env:
 
 - `SEED_USER_1_EMAIL`, `SEED_USER_1_NAME`, `SEED_USER_1_PASSWORD`
 - `SEED_USER_2_EMAIL`, `SEED_USER_2_NAME`, `SEED_USER_2_PASSWORD`
 
-Required OAuth client env:
+Required OAuth client env (one per registered client):
 
 - `FINLENS_CLIENT_SECRET`
-- `HOUSEBOT_CLIENT_SECRET`
-- `APPLYBOT_CLIENT_SECRET`
 
 Seed command:
 

@@ -1,5 +1,13 @@
+import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+
+// Better Auth's OAuth provider stores client secrets in "hashed" mode by
+// default (the mode used whenever the jwt() plugin is enabled). It verifies an
+// incoming secret by SHA-256 hashing it and comparing to the stored value, so
+// the seed must store the hash, not the plaintext, or every token exchange
+// fails with "invalid client_secret".
+const hashClientSecret = (secret: string) => createHash("sha256").update(secret).digest("base64url");
 
 process.env.AUTH_ALLOW_SEED_SIGNUP = "true";
 
@@ -50,7 +58,7 @@ for (const client of oauthClients) {
   const values = {
     id: existing?.id ?? nanoid(),
     clientId: client.clientId,
-    clientSecret: client.clientSecret,
+    clientSecret: hashClientSecret(client.clientSecret),
     disabled: false,
     skipConsent: true,
     enableEndSession: true,

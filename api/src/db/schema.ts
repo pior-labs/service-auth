@@ -121,6 +121,14 @@ export const oauthConsent = pgTable(
   (table) => [uniqueIndex("oauth_consent_user_client_reference_idx").on(table.userId, table.clientId, table.referenceId)],
 );
 
+export const jwks = pgTable("jwks", {
+  id: text("id").primaryKey(),
+  publicKey: text("publicKey").notNull(),
+  privateKey: text("privateKey").notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expiresAt", { withTimezone: true }),
+});
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),

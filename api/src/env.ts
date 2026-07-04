@@ -35,6 +35,4 @@ export const env = {
   idTokenExpiresIn: intEnv("OAUTH_ID_TOKEN_EXPIRES_IN_SECONDS", 60 * 60),
   refreshTokenExpiresIn: intEnv("OAUTH_REFRESH_TOKEN_EXPIRES_IN_SECONDS", 60 * 60 * 24 * 90),
   finlensClientSecret: requiredEnv("FINLENS_CLIENT_SECRET", "change-me-finlens"),
-  housebotClientSecret: requiredEnv("HOUSEBOT_CLIENT_SECRET", "change-me-housebot"),
-  applybotClientSecret: requiredEnv("APPLYBOT_CLIENT_SECRET", "change-me-applybot"),
 };

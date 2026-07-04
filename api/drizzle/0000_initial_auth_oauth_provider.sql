@@ -114,5 +114,13 @@ CREATE TABLE IF NOT EXISTS "oauthConsent" (
   "updatedAt" timestamp with time zone DEFAULT now() NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS "jwks" (
+  "id" text PRIMARY KEY NOT NULL,
+  "publicKey" text NOT NULL,
+  "privateKey" text NOT NULL,
+  "createdAt" timestamp with time zone DEFAULT now() NOT NULL,
+  "expiresAt" timestamp with time zone
+);
+
 CREATE UNIQUE INDEX IF NOT EXISTS "oauth_consent_user_client_reference_idx"
 ON "oauthConsent" ("userId", "clientId", "referenceId");

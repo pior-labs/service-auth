@@ -6,21 +6,10 @@ export const oauthClients = [
     clientSecret: env.finlensClientSecret,
     name: "FinLens",
     uri: "https://finlens.pior.ca",
-    redirectUris: ["https://finlens.pior.ca/callback"],
-  },
-  {
-    clientId: "housebot",
-    clientSecret: env.housebotClientSecret,
-    name: "HouseBot",
-    uri: "https://housebot.pior.ca",
-    redirectUris: ["https://housebot.pior.ca/callback"],
-  },
-  {
-    clientId: "applybot",
-    clientSecret: env.applybotClientSecret,
-    name: "ApplyBot",
-    uri: "https://applybot.pior.ca",
-    redirectUris: ["https://applybot.pior.ca/callback"],
+    redirectUris: [
+      "https://finlens.pior.ca/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:3001/api/auth/oauth2/callback/auth-pior",
+    ],
   },
 ] as const;
 
