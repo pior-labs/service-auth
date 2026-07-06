@@ -1,4 +1,4 @@
-# auth.optiplex.pior.ca
+# auth.tail.optiplex.pior.ca
 
 Private household SSO provider for two users. This is a standalone service using OAuth 2.1 / OIDC.
 
@@ -55,7 +55,7 @@ where `<issuer>` is `<BETTER_AUTH_URL>/api/auth`. The document advertises these 
 - `jwks_uri`: `/jwks` (ID tokens are signed with EdDSA; clients verify against this key set)
 - `end_session_endpoint`: `/oauth2/end-session`
 
-In production the issuer is `https://auth.optiplex.pior.ca/api/auth`. Caddy must route `/api/auth/*` and `/.well-known/*` to the auth API and serve the built web app for `/sign-in`.
+In production the issuer is `https://auth.tail.optiplex.pior.ca/api/auth`. Caddy must route `/api/auth/*` and `/.well-known/*` to the auth API and serve the built web app for `/sign-in`.
 
 ## Local verification (localhost)
 
