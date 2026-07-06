@@ -14,8 +14,9 @@ home server. Follow it top to bottom for a first deploy; the "Redeploying" and
   directly from `/srv/auth/web/dist`.
 - **Postgres** - a logical database named `auth` on the shared Postgres instance
   that already lives on `household_private`.
-- **Caddy** - terminates TLS for `auth.tail.optiplex.pior.ca`, serves the static bundle, and
-  reverse-proxies the API routes to `auth-api:3000`.
+- **Caddy** - runs on the host, terminates TLS for `auth.tail.optiplex.pior.ca`,
+  serves the static bundle, and reverse-proxies the API routes to
+  `127.0.0.1:3000`.
 
 Single-origin architecture: everything is served under `https://auth.tail.optiplex.pior.ca`.
 The browser only ever talks to that one origin; Caddy decides what is static and
