@@ -1,16 +1,18 @@
-auth.tail.optiplex.pior.ca {
+auth.optiplex.pior.ca, auth.tail.optiplex.pior.ca {
+  import cloudflare_tls
   encode zstd gzip
 
+  # auth-api container publishes 127.0.0.1:3000 on the host (see docker-compose.yml).
   handle /api/auth/* {
-    reverse_proxy auth-api:3000
+    reverse_proxy 127.0.0.1:3000
   }
 
   handle /.well-known/* {
-    reverse_proxy auth-api:3000
+    reverse_proxy 127.0.0.1:3000
   }
 
   handle /health {
-    reverse_proxy auth-api:3000
+    reverse_proxy 127.0.0.1:3000
   }
 
   handle {

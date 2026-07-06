@@ -13,8 +13,10 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://auth.tail.optiplex.pior.ca}
       WEB_ORIGIN: ${WEB_ORIGIN:-https://auth.tail.optiplex.pior.ca}
-    expose:
-      - "3000"
+    # Published to the host loopback only, so Caddy (running on the host) can
+    # reach it at 127.0.0.1:3000 while it stays invisible to the LAN/tailnet.
+    ports:
+      - "127.0.0.1:3000:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 30s

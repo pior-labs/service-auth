@@ -40,22 +40,18 @@ origin is `https://finance.tail.optiplex.pior.ca`.
   ```
   If it is missing: `docker network create household_private`.
 - The shared Postgres container is reachable on that network as host `postgres`.
-- Caddy runs on the server, imports snippets from its Caddyfile, and can read a
-  host path for static files (we use `/srv/auth/web/dist`).
-- **DNS**: `auth.tail.optiplex.pior.ca` resolves to the server's Tailscale IP
+- Caddy runs on the **host** (not resolving container names): it reaches the API
+  at `127.0.0.1:3000` and serves the static bundle from `/srv/auth/web/dist`.
+- **DNS**: `auth.tail.optiplex.pior.ca` (and, if you keep it, the plain
+  `auth.optiplex.pior.ca` LAN name) resolves to the server's Tailscale IP
   (the `100.x` address). No public DNS record and no router port-forwarding are
   needed - the host is reached over the tailnet, not the internet.
 - **TLS**: because the host is not publicly reachable, Caddy's default HTTP-01
-  challenge will not work. Use one of:
-  - **DNS-01 challenge** (recommended) - run a Caddy build with the DNS provider
-    plugin for wherever `optiplex.pior.ca` is hosted, and set the provider's API
-    token. This gets a real Let's Encrypt cert for `auth.tail.optiplex.pior.ca`
-    without any inbound reachability. Add a `tls { dns <provider> <token> }`
-    block to the site in `Caddyfile.snippet`.
-  - **Tailscale-issued cert** - `tailscale cert` / `tailscale serve` can
-    terminate TLS for the node's MagicDNS name; use this if you would rather not
-    manage DNS-01 (note it certifies the `*.ts.net` name, so the issuer would
-    then be that MagicDNS host instead of the custom domain).
+  challenge will not work - this deploy uses the **DNS-01 challenge via
+  Cloudflare**, already wired up as the `cloudflare_tls` snippet in the
+  Caddyfile (`import cloudflare_tls`). That gets a real Let's Encrypt cert for
+  the hostname without any inbound reachability. (A Caddy build with the
+  Cloudflare DNS plugin + API token is required; this is already in place.)
 
 ## 1. Get the code onto the server
 
@@ -160,19 +156,21 @@ ls /srv/auth/web/dist   # index.html + assets/
 
 ## 8. Wire up Caddy
 
-Ensure the `auth.tail.optiplex.pior.ca` block from `Caddyfile.snippet` is imported by your
-main Caddyfile (or paste its contents in). It proxies `/api/auth/*`,
-`/.well-known/*`, and `/health` to `auth-api:3000`, and serves everything else
-from `/srv/auth/web/dist`.
+Ensure the site block from `Caddyfile.snippet` is imported by your main
+Caddyfile (or paste its contents in). It serves both `auth.optiplex.pior.ca`
+and `auth.tail.optiplex.pior.ca`, imports `cloudflare_tls` for the cert, proxies
+`/api/auth/*`, `/.well-known/*`, and `/health` to `127.0.0.1:3000` (the host
+port the `auth-api` container publishes), and serves everything else from
+`/srv/auth/web/dist`.
 
 Two things must be true for it to work:
-- Caddy is on the `household_private` network (so it can resolve `auth-api`).
-- The `/srv/auth/web/dist` host path is mounted into the Caddy container at the
-  same path referenced in the snippet.
+- The `auth-api` container publishes `127.0.0.1:3000` on the host (it does - see
+  `ports` in `docker-compose.yml`), so Caddy on the host can reach it.
+- The `/srv/auth/web/dist` path exists on the host and is readable by Caddy.
 
 Reload:
 ```bash
-docker exec <caddy-container> caddy reload --config /etc/caddy/Caddyfile
+caddy reload --config /etc/caddy/Caddyfile
 ```
 
 ## 9. Verify the deploy
