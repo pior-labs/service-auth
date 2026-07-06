@@ -1,4 +1,4 @@
-# Deployment Guide - service-auth (auth.pior.ca)
+# Deployment Guide - service-auth (auth.optiplex.pior.ca)
 
 This is the runbook for deploying the central OAuth 2.1 / OIDC provider to the
 home server. Follow it top to bottom for a first deploy; the "Redeploying" and
@@ -14,10 +14,10 @@ home server. Follow it top to bottom for a first deploy; the "Redeploying" and
   directly from `/srv/auth/web/dist`.
 - **Postgres** - a logical database named `auth` on the shared Postgres instance
   that already lives on `household_private`.
-- **Caddy** - terminates TLS for `auth.pior.ca`, serves the static bundle, and
+- **Caddy** - terminates TLS for `auth.optiplex.pior.ca`, serves the static bundle, and
   reverse-proxies the API routes to `auth-api:3000`.
 
-Single-origin architecture: everything is served under `https://auth.pior.ca`.
+Single-origin architecture: everything is served under `https://auth.optiplex.pior.ca`.
 The browser only ever talks to that one origin; Caddy decides what is static and
 what is proxied to the API.
 
@@ -32,7 +32,7 @@ what is proxied to the API.
 - The shared Postgres container is reachable on that network as host `postgres`.
 - Caddy runs on the server, imports snippets from its Caddyfile, and can read a
   host path for static files (we use `/srv/auth/web/dist`).
-- **DNS**: `auth.pior.ca` resolves to the server (A/AAAA record), and your
+- **DNS**: `auth.optiplex.pior.ca` resolves to the server (A/AAAA record), and your
   router forwards ports 80 + 443 to the Caddy container. Caddy provisions the
   Let's Encrypt certificate automatically on first request.
 
@@ -73,8 +73,8 @@ Fill in real values (the file is gitignored). The ones that matter:
 |---|---|---|
 | `DATABASE_URL` | `postgresql://auth:<password>@postgres:5432/auth` | host is `postgres` (the container name on the shared network) |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32` | also encrypts the private keys in the `jwks` table - rotating it invalidates existing signing keys |
-| `BETTER_AUTH_URL` | `https://auth.pior.ca` | public origin; baked into the `iss` claim of every token |
-| `WEB_ORIGIN` | `https://auth.pior.ca` | |
+| `BETTER_AUTH_URL` | `https://auth.optiplex.pior.ca` | public origin; baked into the `iss` claim of every token |
+| `WEB_ORIGIN` | `https://auth.optiplex.pior.ca` | |
 | `FINLENS_CLIENT_SECRET` | `openssl rand -base64 32` | the **raw** secret; the DB stores its hash. This exact value must also go into FinLens (step 10) |
 | `SEED_USER_1_*` / `SEED_USER_2_*` | real emails/names/passwords | seeds exactly two accounts |
 | `SHARED_DOCKER_NETWORK` | `household_private` | only change if your network has a different name |
@@ -139,7 +139,7 @@ ls /srv/auth/web/dist   # index.html + assets/
 
 ## 8. Wire up Caddy
 
-Ensure the `auth.pior.ca` block from `Caddyfile.snippet` is imported by your
+Ensure the `auth.optiplex.pior.ca` block from `Caddyfile.snippet` is imported by your
 main Caddyfile (or paste its contents in). It proxies `/api/auth/*`,
 `/.well-known/*`, and `/health` to `auth-api:3000`, and serves everything else
 from `/srv/auth/web/dist`.
@@ -157,16 +157,16 @@ docker exec <caddy-container> caddy reload --config /etc/caddy/Caddyfile
 ## 9. Verify the deploy
 
 ```bash
-curl https://auth.pior.ca/health
-curl https://auth.pior.ca/api/auth/.well-known/openid-configuration
+curl https://auth.optiplex.pior.ca/health
+curl https://auth.optiplex.pior.ca/api/auth/.well-known/openid-configuration
 ```
 
-- The discovery document should list `issuer: https://auth.pior.ca/api/auth`,
+- The discovery document should list `issuer: https://auth.optiplex.pior.ca/api/auth`,
   plus the `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, and
   `jwks_uri`.
 - Fetch the `jwks_uri` and confirm it returns at least one key (proves the
   `jwks` table is populated and the signing key exists).
-- Open `https://auth.pior.ca` in a browser - the login page should render.
+- Open `https://auth.optiplex.pior.ca` in a browser - the login page should render.
 
 ## 10. Point FinLens at production
 
@@ -174,8 +174,8 @@ On the FinLens prod host, set these (they mirror what worked locally, swapped to
 the public HTTPS origin):
 
 ```
-CENTRAL_AUTH_ISSUER=https://auth.pior.ca/api/auth
-CENTRAL_AUTH_DISCOVERY_URL=https://auth.pior.ca/api/auth/.well-known/openid-configuration
+CENTRAL_AUTH_ISSUER=https://auth.optiplex.pior.ca/api/auth
+CENTRAL_AUTH_DISCOVERY_URL=https://auth.optiplex.pior.ca/api/auth/.well-known/openid-configuration
 CENTRAL_AUTH_CLIENT_ID=finlens
 CENTRAL_AUTH_CLIENT_SECRET=<the raw FINLENS_CLIENT_SECRET from step 3>
 BETTER_AUTH_URL=https://finance.optiplex.pior.ca
