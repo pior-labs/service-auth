@@ -1,0 +1,132 @@
+name: Deploy Auth Production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Pull and deploy Auth
+    runs-on:
+      - self-hosted
+      - linux
+    defaults:
+      run:
+        shell: bash
+        working-directory: /opt/docker/service-auth
+
+    steps:
+      - name: Validate runner prerequisites
+        run: |
+          set -euo pipefail
+          test -d .git || {
+            echo "/opt/docker/service-auth is not a Git checkout"
+            exit 1
+          }
+          command -v docker >/dev/null
+          command -v curl >/dev/null
+          docker compose version
+
+      - name: Update production checkout
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "Tracked files in the production checkout have local changes."
+            git status --short
+            exit 1
+          fi
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+
+      - name: Write production environment
+        env:
+          AUTH_ENV: ${{ secrets.AUTH_ENV }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AUTH_ENV:-}" ]; then
+            echo "Missing required repository secret: AUTH_ENV"
+            exit 1
+          fi
+          printf '%s\n' "$AUTH_ENV" > .env
+          chmod 600 .env
+
+      - name: Validate production configuration
+        run: |
+          set -euo pipefail
+
+          shared_network="$(grep -E '^SHARED_DOCKER_NETWORK=' .env | tail -n 1 | cut -d= -f2- || true)"
+          shared_network="${shared_network:-household_private}"
+
+          docker network inspect "$shared_network" >/dev/null || {
+            echo "Required Postgres network does not exist: $shared_network"
+            exit 1
+          }
+          docker network inspect pior_edge >/dev/null || {
+            echo "Required platform edge network does not exist: pior_edge"
+            exit 1
+          }
+
+          database_url="$(grep -E '^DATABASE_URL=' .env | tail -n 1 | cut -d= -f2-)"
+          if [ -z "$database_url" ]; then
+            echo "DATABASE_URL is missing from AUTH_ENV"
+            exit 1
+          fi
+          case "$database_url" in
+            *'@localhost:'*|*'@127.0.0.1:'*)
+              echo "DATABASE_URL must use the Postgres container hostname or network alias."
+              exit 1
+              ;;
+          esac
+
+          docker compose config --quiet
+
+      - name: Build Auth images
+        run: docker compose build
+
+      - name: Apply database migration
+        run: docker compose run --rm api node dist/scripts/migrate.js
+
+      - name: Start Auth services
+        run: docker compose up -d --remove-orphans
+
+      - name: Wait for Auth API health
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/health; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Auth API did not become healthy."
+          docker compose ps
+          docker compose logs --tail=100 api
+          exit 1
+
+      - name: Verify Auth through platform Caddy
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H 'Host: auth.szarans.ca' \
+            http://127.0.0.1:8088/health
+          echo
+
+          curl --fail --silent --show-error --output /dev/null \
+            -H 'Host: auth.szarans.ca' \
+            http://127.0.0.1:8088/sign-in
+
+          curl --fail --silent --show-error --output /dev/null \
+            -H 'Host: auth.ts.szarans.ca' \
+            http://127.0.0.1:8088/sign-in
+
+      - name: Show running services
+        run: docker compose ps
