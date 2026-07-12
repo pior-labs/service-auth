@@ -15,3 +15,8 @@ RUN pnpm --filter @auth/web build
 
 FROM scratch AS dist
 COPY --from=build /app/web/dist /
+
+FROM caddy:2-alpine AS runtime
+COPY web/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/web/dist /srv
+EXPOSE 80
