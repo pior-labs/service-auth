@@ -103,19 +103,19 @@ jobs:
 
           mapfile -t database_parts < <(
             DATABASE_URL="$database_url" python3 - <<'PY'
-import os
-from urllib.parse import unquote, urlparse
+          import os
+          from urllib.parse import unquote, urlparse
 
-url = urlparse(os.environ["DATABASE_URL"])
-if url.scheme not in {"postgres", "postgresql"}:
-    raise SystemExit("DATABASE_URL must use postgres:// or postgresql://")
-if not url.username or url.password is None or not url.path.lstrip("/"):
-    raise SystemExit("DATABASE_URL must include a database user, password, and database name")
+          url = urlparse(os.environ["DATABASE_URL"])
+          if url.scheme not in {"postgres", "postgresql"}:
+              raise SystemExit("DATABASE_URL must use postgres:// or postgresql://")
+          if not url.username or url.password is None or not url.path.lstrip("/"):
+              raise SystemExit("DATABASE_URL must include a database user, password, and database name")
 
-print(unquote(url.username))
-print(unquote(url.password))
-print(unquote(url.path.lstrip("/")))
-PY
+          print(unquote(url.username))
+          print(unquote(url.password))
+          print(unquote(url.path.lstrip("/")))
+          PY
           )
 
           auth_db_user="${database_parts[0]}"
