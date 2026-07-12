@@ -13,8 +13,8 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://auth.tail.optiplex.pior.ca}
       WEB_ORIGIN: ${WEB_ORIGIN:-https://auth.tail.optiplex.pior.ca}
-    # Published to the host loopback only, so Caddy (running on the host) can
-    # reach it at 127.0.0.1:3000 while it stays invisible to the LAN/tailnet.
+    # Published to the host loopback only, so the current host Caddy can keep
+    # serving production traffic during the platform edge migration.
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
@@ -24,9 +24,36 @@ services:
       retries: 3
       start_period: 15s
     networks:
-      - household_private
+      household_private:
+      pior_edge:
+        aliases:
+          - auth-api
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        VITE_AUTH_BASE_URL: ${VITE_AUTH_BASE_URL:-}
+    container_name: auth-web
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      pior_edge:
+        aliases:
+          - auth-web
 
 networks:
   household_private:
     external: true
     name: ${SHARED_DOCKER_NETWORK:-household_private}
+  pior_edge:
+    external: true
+    name: pior_edge
