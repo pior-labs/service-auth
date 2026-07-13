@@ -16,6 +16,11 @@ jobs:
     runs-on:
       - self-hosted
       - linux
+      - service-auth
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.production.yml
+      AUTH_DATABASE_URL_FILE: ${{ vars.AUTH_DATABASE_URL_FILE || '/opt/docker/pior-labs/secrets/service-auth/database-url' }}
+      DATA_NETWORK: ${{ vars.DATA_NETWORK || 'pior_data' }}
     defaults:
       run:
         shell: bash
@@ -54,18 +59,31 @@ jobs:
             echo "Missing required repository secret: AUTH_ENV"
             exit 1
           fi
+
           printf '%s\n' "$AUTH_ENV" > .env
+          sed -i \
+            -e '/^DATABASE_URL=/d' \
+            -e '/^DATABASE_URL_FILE=/d' \
+            -e '/^AUTH_DATABASE_URL_FILE=/d' \
+            -e '/^SHARED_DOCKER_NETWORK=/d' \
+            -e '/^DATA_NETWORK=/d' \
+            -e '/^COMPOSE_FILE=/d' \
+            .env
+
+          {
+            printf '\n'
+            printf 'COMPOSE_FILE=%s\n' "$COMPOSE_FILE"
+            printf 'AUTH_DATABASE_URL_FILE=%s\n' "$AUTH_DATABASE_URL_FILE"
+            printf 'DATA_NETWORK=%s\n' "$DATA_NETWORK"
+          } >> .env
           chmod 600 .env
 
       - name: Validate production configuration
         run: |
           set -euo pipefail
 
-          shared_network="$(grep -E '^SHARED_DOCKER_NETWORK=' .env | tail -n 1 | cut -d= -f2- || true)"
-          shared_network="${shared_network:-household_private}"
-
-          docker network inspect "$shared_network" >/dev/null || {
-            echo "Required Postgres network does not exist: $shared_network"
+          docker network inspect "$DATA_NETWORK" >/dev/null || {
+            echo "Required platform data network does not exist: $DATA_NETWORK"
             exit 1
           }
           docker network inspect pior_edge >/dev/null || {
@@ -73,22 +91,23 @@ jobs:
             exit 1
           }
 
-          database_url="$(grep -E '^DATABASE_URL=' .env | tail -n 1 | cut -d= -f2-)"
-          if [ -z "$database_url" ]; then
-            echo "DATABASE_URL is missing from AUTH_ENV"
-            exit 1
-          fi
-          case "$database_url" in
-            *'@localhost:'*|*'@127.0.0.1:'*)
-              echo "DATABASE_URL must use the Postgres container hostname or network alias."
-              exit 1
-              ;;
-          esac
-
           docker compose config --quiet
 
       - name: Build Auth images
         run: docker compose build
+
+      - name: Validate database secret mount
+        run: |
+          docker compose run --rm --no-deps api node -e '
+            const { readFileSync } = require("node:fs");
+            const path = process.env.DATABASE_URL_FILE;
+            if (!path) throw new Error("DATABASE_URL_FILE is not configured");
+            const value = readFileSync(path, "utf8").trim();
+            if (!value.startsWith("postgresql://") && !value.startsWith("postgres://")) {
+              throw new Error("Mounted database secret is not a PostgreSQL URL");
+            }
+            console.log("Auth database secret is mounted.");
+          '
 
       - name: Apply database migration
         run: docker compose run --rm api node dist/scripts/migrate.js
