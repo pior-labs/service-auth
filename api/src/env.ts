@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { config } from "dotenv";
 
 config({ path: "../.env.local" });
@@ -22,10 +23,32 @@ const requiredEnv = (name: string, fallback?: string) => {
   return value;
 };
 
+const requiredEnvOrFile = (name: string, fallback?: string) => {
+  const value = process.env[name];
+  if (value) return value;
+
+  const filePath = process.env[`${name}_FILE`];
+  if (!filePath) return requiredEnv(name, fallback);
+
+  let fileValue: string;
+  try {
+    fileValue = readFileSync(filePath, "utf8").trim();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${name}_FILE could not be read from ${filePath}: ${message}`);
+  }
+
+  if (!fileValue) throw new Error(`${name}_FILE is empty: ${filePath}`);
+  return fileValue;
+};
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: intEnv("API_PORT", 3000),
-  databaseUrl: requiredEnv("DATABASE_URL", "postgresql://postgres:postgres@postgres:5432/auth"),
+  databaseUrl: requiredEnvOrFile(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@postgres:5432/auth",
+  ),
   betterAuthSecret: requiredEnv("BETTER_AUTH_SECRET"),
   betterAuthUrl: requiredEnv("BETTER_AUTH_URL", "http://localhost:3000"),
   webOrigin: requiredEnv("WEB_ORIGIN", "http://localhost:5173"),
