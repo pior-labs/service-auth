@@ -13,8 +13,9 @@ API_PORT=3000
 NODE_ENV=production
 DATABASE_URL=postgresql://auth:<url-encoded-password>@postgres:5432/auth
 BETTER_AUTH_SECRET=<long-random-secret>
-BETTER_AUTH_URL=<production-auth-origin>
-WEB_ORIGIN=<production-auth-origin>
+BETTER_AUTH_URL=https://auth.ts.szarans.ca
+WEB_ORIGIN=https://auth.ts.szarans.ca
+VITE_AUTH_BASE_URL=
 SHARED_DOCKER_NETWORK=household_private
 FINLENS_CLIENT_SECRET=<shared-finlens-client-secret>
 SEED_USER_1_EMAIL=<email>
@@ -26,6 +27,17 @@ SEED_USER_2_PASSWORD=<password>
 ```
 
 The database password in `DATABASE_URL` must be URL encoded when it contains reserved URL characters.
+
+Leaving `VITE_AUTH_BASE_URL` blank makes the SPA use whichever Auth origin served it. The canonical OAuth issuer remains `https://auth.ts.szarans.ca/api/auth`.
+
+The seeded FinLens client accepts these production callback URLs:
+
+```text
+https://finance.ts.szarans.ca/api/auth/oauth2/callback/auth-pior
+https://finance.szarans.ca/api/auth/oauth2/callback/auth-pior
+```
+
+The exact `FINLENS_CLIENT_SECRET` value must also be configured in the FinLens production environment.
 
 ### `POSTGRES_ADMIN_URL`
 
@@ -78,7 +90,7 @@ The runner executing these workflows must:
 
 - be available to the `service-auth` repository
 - have the labels `self-hosted` and `linux`
-- run as a user that can read `/home/pior/.ssh/service_auth` through the configured Git remote, or otherwise authenticate the existing checkout
+- authenticate the existing checkout's Git remote as the runner service account
 - have write access to `/opt/docker/service-auth`
 - be able to run Docker without `sudo`
 - have `curl` and `python3` installed
