@@ -5,14 +5,13 @@ export const oauthClients = [
     clientId: "finlens",
     clientSecret: env.finlensClientSecret,
     name: "FinLens",
-    uri: "https://finance.tail.optiplex.pior.ca",
-    // The Tailscale hostname is the primary self-host origin (reachable both at
-    // home and away over the tailnet). The plain LAN hostname is kept as a
-    // second registered callback in case FinLens is ever run under it; the
-    // localhost entry is for local development.
+    uri: "https://finance.ts.szarans.ca",
+    // The Tailscale hostname is the canonical self-host origin. The plain
+    // hostname remains registered for LAN access, and localhost supports local
+    // development against the same OAuth client.
     redirectUris: [
-      "https://finance.tail.optiplex.pior.ca/api/auth/oauth2/callback/auth-pior",
-      "https://finance.optiplex.pior.ca/api/auth/oauth2/callback/auth-pior",
+      "https://finance.ts.szarans.ca/api/auth/oauth2/callback/auth-pior",
+      "https://finance.szarans.ca/api/auth/oauth2/callback/auth-pior",
       "http://localhost:5174/api/auth/oauth2/callback/auth-pior",
     ],
   },
