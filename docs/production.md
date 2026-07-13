@@ -4,6 +4,8 @@ Production uses a persistent checkout at `/opt/docker/service-auth` on the OptiP
 
 The shared PostgreSQL cluster, Auth database, restricted login role, and connection secret are owned by `pior-labs/platform-deploy`. This repository owns the Auth schema migration and seed data.
 
+Both jobs target the GitHub `PRODUCTION` environment. Production secrets and variables may be configured there; repository-level values also remain available.
+
 ## Platform prerequisite
 
 Run the `platform-deploy` workflow before the first Auth bootstrap. It must create:
@@ -15,7 +17,7 @@ pior_data
 
 The generated connection string targets database `auth` with the restricted role `auth_app`. It remains on the server and is mounted into the API container as a Compose secret.
 
-## Required repository secret
+## Required production secret
 
 ### `AUTH_ENV`
 
@@ -50,7 +52,7 @@ https://finance.szarans.ca/api/auth/oauth2/callback/auth-pior
 
 The exact `FINLENS_CLIENT_SECRET` value must also be configured in the Finance production environment.
 
-## Optional repository variables
+## Optional production variables
 
 | Variable | Default | Purpose |
 |---|---|---|
