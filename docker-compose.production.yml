@@ -1,0 +1,12 @@
+services:
+  api:
+    environment:
+      # Ignore any legacy DATABASE_URL value that may still exist in AUTH_ENV.
+      DATABASE_URL: ""
+      DATABASE_URL_FILE: /run/secrets/auth_database_url
+    secrets:
+      - auth_database_url
+
+secrets:
+  auth_database_url:
+    file: ${AUTH_DATABASE_URL_FILE:-/opt/docker/pior-labs/secrets/service-auth/database-url}
