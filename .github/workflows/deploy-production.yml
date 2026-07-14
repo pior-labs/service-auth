@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: auth-production-deploy
@@ -22,6 +23,7 @@ jobs:
       COMPOSE_FILE: docker-compose.yml:docker-compose.production.yml
       AUTH_DATABASE_URL_FILE: ${{ vars.AUTH_DATABASE_URL_FILE || '/opt/docker/pior-labs/secrets/service-auth/database-url' }}
       DATA_NETWORK: ${{ vars.DATA_NETWORK || 'pior_data' }}
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         shell: bash
