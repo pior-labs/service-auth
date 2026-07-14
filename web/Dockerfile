@@ -1,11 +1,16 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:22-alpine AS base
 WORKDIR /app
 RUN corepack enable
 
 FROM base AS deps
 COPY package.json pnpm-workspace.yaml ./
+COPY .npmrc .npmrc
 COPY web/package.json web/package.json
-RUN pnpm install --filter @auth/web --prod=false --frozen-lockfile=false
+RUN --mount=type=secret,id=npm_token,required=true \
+    NODE_AUTH_TOKEN="$(cat /run/secrets/npm_token)" \
+    pnpm install --filter @auth/web --prod=false --frozen-lockfile=false
 
 FROM deps AS build
 ARG VITE_AUTH_BASE_URL=
