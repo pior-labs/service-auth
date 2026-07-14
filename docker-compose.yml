@@ -35,6 +35,8 @@ services:
       dockerfile: web/Dockerfile
       args:
         VITE_AUTH_BASE_URL: ${VITE_AUTH_BASE_URL:-}
+      secrets:
+        - npm_token
     container_name: auth-web
     depends_on:
       api:
@@ -57,3 +59,7 @@ networks:
   pior_edge:
     external: true
     name: pior_edge
+
+secrets:
+  npm_token:
+    environment: NODE_AUTH_TOKEN
