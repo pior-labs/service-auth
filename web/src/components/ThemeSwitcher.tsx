@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Palette } from "lucide-react";
-import { useTheme } from "@ipior/custom-tailwind-shadcn-themes";
+import { useTheme } from "@pior-labs/design-system";
 
 /**
  * Dropdown theme picker: a pill trigger showing the active theme, opening a
