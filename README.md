@@ -1,4 +1,4 @@
-# auth.tail.optiplex.pior.ca
+# Pior Labs Auth Service
 
 Private household SSO provider for two users. This is a standalone service using OAuth 2.1 / OIDC.
 
@@ -13,7 +13,9 @@ Private household SSO provider for two users. This is a standalone service using
 
 - `api/`: Hono entrypoint, Better Auth config, Drizzle schema/migration, seed/reset scripts
 - `web/`: single login page SPA
-- `docker-compose.yml`: API container joined to the shared external Docker network
+- `docker-compose.yml`: base API/web services and shared platform networks
+- `docker-compose.production.yml`: server-side database secret mount
+- `docs/production.md`: production workflow and platform integration contract
 
 ## Better Auth OAuth Provider
 
@@ -31,13 +33,14 @@ ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` cu
 
 ## Setup
 
-1. Create the logical Postgres database named `auth` in the shared Postgres server.
-2. Copy `.env.example` to `.env` and fill real secrets, emails, and passwords.
+1. For local development, create a logical Postgres database named `auth`. Production database and role provisioning is owned by `pior-labs/platform-deploy`.
+2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords.
 3. Install dependencies with `pnpm install` from this directory.
 4. Apply the checked-in migration with `pnpm db:migrate`.
 5. Seed users and clients with `pnpm db:seed`.
-6. Build the web app with `pnpm --filter @auth/web build` and serve `web/dist` from Caddy.
-7. Start the API with `docker compose up -d --build api`.
+6. Run locally with `pnpm dev`, or build and start the containers with Docker Compose.
+
+Production uses the platform-generated connection file rather than a `DATABASE_URL` stored in GitHub. See [`docs/production.md`](docs/production.md).
 
 ## OpenID Connect endpoints
 
@@ -55,7 +58,7 @@ where `<issuer>` is `<BETTER_AUTH_URL>/api/auth`. The document advertises these 
 - `jwks_uri`: `/jwks` (ID tokens are signed with EdDSA; clients verify against this key set)
 - `end_session_endpoint`: `/oauth2/end-session`
 
-In production the issuer is `https://auth.tail.optiplex.pior.ca/api/auth`. Caddy must route `/api/auth/*` and `/.well-known/*` to the auth API and serve the built web app for `/sign-in`.
+In production the issuer is `https://auth.ts.szarans.ca/api/auth`. Platform Caddy routes `/api/auth/*` and `/.well-known/*` to the Auth API and serves the web container for `/sign-in`.
 
 ## Local verification (localhost)
 

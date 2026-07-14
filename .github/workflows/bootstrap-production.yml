@@ -17,10 +17,16 @@ concurrency:
 
 jobs:
   bootstrap:
-    name: Bootstrap database and seed Auth
+    name: Migrate and seed Auth database
+    environment: PRODUCTION
     runs-on:
       - self-hosted
       - linux
+      - service-auth
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.production.yml
+      AUTH_DATABASE_URL_FILE: ${{ vars.AUTH_DATABASE_URL_FILE || '/opt/docker/pior-labs/secrets/service-auth/database-url' }}
+      DATA_NETWORK: ${{ vars.DATA_NETWORK || 'pior_data' }}
     defaults:
       run:
         shell: bash
@@ -43,7 +49,6 @@ jobs:
             exit 1
           }
           command -v docker >/dev/null
-          command -v python3 >/dev/null
           docker compose version
 
       - name: Update production checkout
@@ -64,101 +69,58 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${AUTH_ENV:-}" ]; then
-            echo "Missing required repository secret: AUTH_ENV"
+            echo "Missing required production secret: AUTH_ENV"
             exit 1
           fi
+
           printf '%s\n' "$AUTH_ENV" > .env
+          sed -i \
+            -e '/^DATABASE_URL=/d' \
+            -e '/^DATABASE_URL_FILE=/d' \
+            -e '/^AUTH_DATABASE_URL_FILE=/d' \
+            -e '/^SHARED_DOCKER_NETWORK=/d' \
+            -e '/^DATA_NETWORK=/d' \
+            -e '/^COMPOSE_FILE=/d' \
+            .env
+
+          {
+            printf '\n'
+            printf 'COMPOSE_FILE=%s\n' "$COMPOSE_FILE"
+            printf 'AUTH_DATABASE_URL_FILE=%s\n' "$AUTH_DATABASE_URL_FILE"
+            printf 'DATA_NETWORK=%s\n' "$DATA_NETWORK"
+          } >> .env
           chmod 600 .env
 
-      - name: Validate external Docker networks
+      - name: Validate platform prerequisites
         run: |
           set -euo pipefail
-          shared_network="$(grep -E '^SHARED_DOCKER_NETWORK=' .env | tail -n 1 | cut -d= -f2- || true)"
-          shared_network="${shared_network:-household_private}"
-          docker network inspect "$shared_network" >/dev/null || {
-            echo "Required Postgres network does not exist: $shared_network"
+          docker network inspect "$DATA_NETWORK" >/dev/null || {
+            echo "Required platform data network does not exist: $DATA_NETWORK"
             exit 1
           }
           docker network inspect pior_edge >/dev/null || {
             echo "Required platform edge network does not exist: pior_edge"
             exit 1
           }
-          echo "SHARED_DOCKER_NETWORK=$shared_network" >> "$GITHUB_ENV"
-
-      - name: Create or update Auth database and role
-        env:
-          POSTGRES_ADMIN_URL: ${{ secrets.POSTGRES_ADMIN_URL }}
-        run: |
-          set -euo pipefail
-          if [ -z "${POSTGRES_ADMIN_URL:-}" ]; then
-            echo "Missing required repository secret: POSTGRES_ADMIN_URL"
-            exit 1
-          fi
-
-          database_url="$(grep -E '^DATABASE_URL=' .env | tail -n 1 | cut -d= -f2-)"
-          if [ -z "$database_url" ]; then
-            echo "DATABASE_URL is missing from AUTH_ENV"
-            exit 1
-          fi
-
-          mapfile -t database_parts < <(
-            DATABASE_URL="$database_url" python3 - <<'PY'
-          import os
-          from urllib.parse import unquote, urlparse
-
-          url = urlparse(os.environ["DATABASE_URL"])
-          if url.scheme not in {"postgres", "postgresql"}:
-              raise SystemExit("DATABASE_URL must use postgres:// or postgresql://")
-          if not url.username or url.password is None or not url.path.lstrip("/"):
-              raise SystemExit("DATABASE_URL must include a database user, password, and database name")
-
-          print(unquote(url.username))
-          print(unquote(url.password))
-          print(unquote(url.path.lstrip("/")))
-          PY
-          )
-
-          auth_db_user="${database_parts[0]}"
-          auth_db_password="${database_parts[1]}"
-          auth_db_name="${database_parts[2]}"
-          echo "::add-mask::$auth_db_password"
-
-          docker run --rm -i \
-            --network "$SHARED_DOCKER_NETWORK" \
-            -e POSTGRES_ADMIN_URL="$POSTGRES_ADMIN_URL" \
-            -e AUTH_DB_USER="$auth_db_user" \
-            -e AUTH_DB_PASSWORD="$auth_db_password" \
-            -e AUTH_DB_NAME="$auth_db_name" \
-            postgres:16-alpine \
-            sh -euc 'psql "$POSTGRES_ADMIN_URL" \
-              --set=ON_ERROR_STOP=1 \
-              --set=auth_user="$AUTH_DB_USER" \
-              --set=auth_password="$AUTH_DB_PASSWORD" \
-              --set=auth_db="$AUTH_DB_NAME"' <<'SQL'
-          SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'auth_user', :'auth_password')
-          WHERE NOT EXISTS (
-            SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = :'auth_user'
-          )
-          \gexec
-
-          SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'auth_user', :'auth_password')
-          \gexec
-
-          SELECT format('CREATE DATABASE %I OWNER %I', :'auth_db', :'auth_user')
-          WHERE NOT EXISTS (
-            SELECT 1 FROM pg_catalog.pg_database WHERE datname = :'auth_db'
-          )
-          \gexec
-
-          SELECT format('ALTER DATABASE %I OWNER TO %I', :'auth_db', :'auth_user')
-          \gexec
-          SQL
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
 
       - name: Build Auth API image
         run: docker compose build api
+
+      - name: Validate database secret mount
+        run: |
+          docker compose run --rm --no-deps api node -e '
+            const { readFileSync } = require("node:fs");
+            const path = process.env.DATABASE_URL_FILE;
+            if (!path) throw new Error("DATABASE_URL_FILE is not configured");
+            const value = readFileSync(path, "utf8").trim();
+            if (!value.startsWith("postgresql://") && !value.startsWith("postgres://")) {
+              throw new Error("Mounted database secret is not a PostgreSQL URL");
+            }
+            console.log("Auth database secret is mounted.");
+          '
 
       - name: Apply database migration
         run: docker compose run --rm api node dist/scripts/migrate.js
@@ -168,5 +130,5 @@ jobs:
 
       - name: Show bootstrap result
         run: |
-          echo "Auth database bootstrap completed."
+          echo "Auth migration and seed completed."
           echo "Run the Deploy Auth Production workflow to start the service."
