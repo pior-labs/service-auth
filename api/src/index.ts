@@ -49,9 +49,10 @@ app.on(["GET", "POST"], "/.well-known/*", (c) => auth.handler(c.req.raw));
 serve(
   {
     fetch: app.fetch,
+    hostname: "0.0.0.0",
     port: env.port,
   },
   (info) => {
-    console.log(`auth api listening on http://127.0.0.1:${info.port}`);
+    console.log(`auth api listening on http://0.0.0.0:${info.port}`);
   },
 );
