@@ -23,7 +23,6 @@ jobs:
       COMPOSE_FILE: docker-compose.yml:docker-compose.production.yml
       AUTH_DATABASE_URL_FILE: ${{ vars.AUTH_DATABASE_URL_FILE || '/opt/docker/pior-labs/secrets/service-auth/database-url' }}
       DATA_NETWORK: ${{ vars.DATA_NETWORK || 'pior_data' }}
-      AUTH_HOST_PORT: ${{ vars.AUTH_HOST_PORT || '3001' }}
       NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
@@ -80,7 +79,6 @@ jobs:
             printf 'COMPOSE_FILE=%s\n' "$COMPOSE_FILE"
             printf 'AUTH_DATABASE_URL_FILE=%s\n' "$AUTH_DATABASE_URL_FILE"
             printf 'DATA_NETWORK=%s\n' "$DATA_NETWORK"
-            printf 'AUTH_HOST_PORT=%s\n' "$AUTH_HOST_PORT"
           } >> .env
           chmod 600 .env
 
@@ -125,14 +123,14 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error "http://127.0.0.1:${AUTH_HOST_PORT}/health"; then
+            if docker compose exec -T api wget -qO- http://127.0.0.1:3000/health; then
               echo
               exit 0
             fi
             sleep 2
           done
 
-          echo "Auth API did not become healthy on host port ${AUTH_HOST_PORT}."
+          echo "Auth API did not become healthy inside its container."
           docker compose ps
           docker compose logs --tail=100 api
           exit 1
