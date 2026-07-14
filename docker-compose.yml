@@ -13,10 +13,6 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://auth.ts.szarans.ca}
       WEB_ORIGIN: ${WEB_ORIGIN:-https://auth.ts.szarans.ca}
-    # Published to the host loopback for direct deployment health checks.
-    # The internal container port remains 3000 for platform Caddy routing.
-    ports:
-      - "127.0.0.1:${AUTH_HOST_PORT:-3001}:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 30s
