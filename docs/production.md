@@ -126,6 +126,34 @@ The workflow:
 
 Deployment remains manual through `workflow_dispatch`.
 
+### Applying the restart policy change
+
+Both long-running services (`api` and `web`) use `restart: unless-stopped`.
+Docker restarts exited containers unless they were explicitly stopped. This
+does not restart a container that stays running but becomes unhealthy during a
+network outage; health checks report health without triggering a restart.
+The migration, seed, and secret-validation jobs use `docker compose run --rm`,
+which overrides the service restart policy so these one-off jobs do not restart.
+
+The **Deploy Auth Production** workflow applies updated Compose settings with
+`docker compose up -d --remove-orphans`. However, the checked-in workflow requires
+Git and a checkout on the server, so it cannot currently run on a server without
+Git. For this configuration-only change, copy the updated `docker-compose.yml`
+and `docker-compose.production.yml` from your local `main` checkout into
+`/opt/docker/service-auth` using your existing file-transfer method, preserving
+the server's `.env` and secrets. Then apply the same Compose step manually:
+
+```bash
+cd /opt/docker/service-auth
+docker compose -f docker-compose.yml -f docker-compose.production.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --remove-orphans
+docker inspect --format '{{.Name}} {{.HostConfig.RestartPolicy.Name}}' auth-api auth-web
+```
+
+Both containers should report `unless-stopped`. `up -d` applies the changed
+configuration by recreating the affected containers; `docker compose restart`
+does not apply configuration changes. This does not require bootstrap or seeding.
+
 ## Runner requirements
 
 The runner executing these workflows must:

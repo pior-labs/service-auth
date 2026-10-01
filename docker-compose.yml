@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: api/Dockerfile
     container_name: auth-api
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -34,6 +35,7 @@ services:
       secrets:
         - npm_token
     container_name: auth-web
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
