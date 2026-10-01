@@ -5,12 +5,13 @@ WORKDIR /app
 RUN corepack enable
 
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY .npmrc .npmrc
+COPY api/package.json api/package.json
 COPY web/package.json web/package.json
 RUN --mount=type=secret,id=npm_token,required=true \
     NODE_AUTH_TOKEN="$(cat /run/secrets/npm_token)" \
-    pnpm install --filter @auth/web --prod=false --frozen-lockfile=false \
+    pnpm install --filter @auth/web --prod=false --frozen-lockfile \
     && rm -f .npmrc
 
 FROM deps AS build

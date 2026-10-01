@@ -123,6 +123,13 @@ The workflow:
 6. recreates the Auth services
 7. waits for the API health check inside the container
 8. verifies `/health` and `/sign-in` through production Caddy at `https://auth.szarans.ca`
+9. requires HTTP 200 from the exact public `/api/auth/.well-known/openid-configuration` endpoint and validates its JSON, canonical issuer, endpoint URLs, and OIDC capabilities
+
+Both images install dependencies from `pnpm-lock.yaml` with `--frozen-lockfile`.
+Dependency upgrades must update the lockfile and reconcile any Better Auth schema
+changes before deployment. Installing `latest` without the lockfile previously
+deployed Better Auth 1.7.7 against the 1.6.20 schema, causing discovery requests to
+return HTTP 500 with `SCHEMA_MISMATCH` while `/health` continued to succeed.
 
 Deployment remains manual through `workflow_dispatch`.
 

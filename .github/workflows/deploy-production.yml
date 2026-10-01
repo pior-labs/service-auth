@@ -148,5 +148,20 @@ jobs:
             --resolve auth.szarans.ca:443:127.0.0.1 \
             https://auth.szarans.ca/sign-in
 
+      - name: Verify public OIDC discovery
+        run: |
+          set -euo pipefail
+          response=$(mktemp)
+          trap 'rm -f "$response"' EXIT
+          status=$(curl --silent --show-error --max-time 30 \
+            --output "$response" --write-out '%{http_code}' \
+            https://auth.szarans.ca/api/auth/.well-known/openid-configuration)
+          if [ "$status" != 200 ]; then
+            echo "Auth OIDC discovery returned HTTP $status; expected 200."
+            docker compose logs --tail=100 api
+            exit 1
+          fi
+          docker compose exec -T api node dist/scripts/verify-discovery.js < "$response"
+
       - name: Show running services
         run: docker compose ps
