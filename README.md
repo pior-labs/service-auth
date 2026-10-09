@@ -67,6 +67,7 @@ For development of service-auth itself, the local setup mirrors production's sin
 1. Ensure Postgres is running and the `DATABASE_URL` database exists.
 2. `pnpm db:migrate` then `pnpm db:seed`.
 3. `pnpm dev` (starts API on `:3000` and web on `:5173`).
+
 The local discovery URL is `http://localhost:5173/api/auth/.well-known/openid-configuration`. Testing a separate client against this local provider requires isolated ports and an explicitly registered callback.
 
 Historical provider verification exercised the full authorization-code + PKCE flow (`authorize` -> `/sign-in` -> `token` -> `userinfo`, plus `refresh_token`) against a client on `http://localhost:3001`. That port is not part of the current application callback registrations.
