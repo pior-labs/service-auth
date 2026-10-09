@@ -25,7 +25,7 @@ The provider is configured with:
 
 - `loginPage: "/sign-in"`, served by the SPA fallback
 - scopes: `openid`, `profile`, `email`, `offline_access`
-- trusted clients cached by ID: `finlens`, `cookbook`, and `assistant` when configured
+- trusted clients cached by ID: `finlens`, `cookbook`, and `assistant`
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
 
@@ -158,9 +158,11 @@ as `CENTRAL_AUTH_CLIENT_SECRET` in the Assistant API environment. The separate
 Assistant `BETTER_AUTH_SECRET` must be independently generated. No secrets belong
 in frontend variables or Git.
 
-Without `ASSISTANT_CLIENT_SECRET`, existing clients continue working and the
-Assistant client is omitted. After configuring it, restart the service so its
-trusted-client cache includes Assistant, then run the existing seed command:
+Assistant follows the same configuration pattern as Finance and Cookbook and is
+always included in the client registry. Configure its real secret before seeding;
+the `change-me-assistant` fallback is only a development placeholder. Restart
+service-auth to load the updated trusted-client cache, then run the existing seed
+command:
 
 ```bash
 pnpm db:seed
