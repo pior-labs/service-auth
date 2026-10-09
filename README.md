@@ -173,7 +173,3 @@ seed variables and other client secrets configured as before.
 It does not deploy Assistant. Merge/deployment approval belongs to Piotr.
 Assistant application sign-out revokes only its app session; it does not log out
 of central SSO or revoke sessions in other applications.
-
-Run `pnpm --filter @auth/api test:assistant-client` for an isolated Docker/Postgres
-registration regression check (hashed secret, rotation, exact callbacks, PKCE and
-preserved existing users and unrelated clients). This test never connects to production.
