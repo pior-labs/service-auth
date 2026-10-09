@@ -1,19 +1,12 @@
-import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
 
-// Better Auth's OAuth provider stores client secrets in "hashed" mode by
-// default (the mode used whenever the jwt() plugin is enabled). It verifies an
-// incoming secret by SHA-256 hashing it and comparing to the stored value, so
-// the seed must store the hash, not the plaintext, or every token exchange
-// fails with "invalid client_secret".
-const hashClientSecret = (secret: string) => createHash("sha256").update(secret).digest("base64url");
+import { seedOAuthClient } from "./seed-oauth-client.js";
 
 process.env.AUTH_ALLOW_SEED_SIGNUP = "true";
 
 const { auth } = await import("../src/auth.js");
 const { db } = await import("../src/db/index.js");
-const { account, oauthClient, user } = await import("../src/db/schema.js");
+const { account, user } = await import("../src/db/schema.js");
 const { oauthClients } = await import("../src/oauth-clients.js");
 
 const required = (name: string) => {
@@ -54,34 +47,7 @@ for (const seedUser of seedUsers) {
 }
 
 for (const client of oauthClients) {
-  const existing = await db.query.oauthClient.findFirst({ where: eq(oauthClient.clientId, client.clientId) });
-  const values = {
-    id: existing?.id ?? nanoid(),
-    clientId: client.clientId,
-    clientSecret: hashClientSecret(client.clientSecret),
-    disabled: false,
-    skipConsent: true,
-    enableEndSession: true,
-    scopes: ["openid", "profile", "email", "offline_access"],
-    name: client.name,
-    uri: client.uri,
-    redirectUris: [...client.redirectUris],
-    tokenEndpointAuthMethod: "client_secret_post",
-    grantTypes: ["authorization_code", "refresh_token"],
-    responseTypes: ["code"],
-    public: false,
-    type: "web",
-    requirePKCE: true,
-    metadata: { trusted: true },
-    updatedAt: new Date(),
-  };
-
-  await db.insert(oauthClient).values(values).onConflictDoUpdate({
-    target: oauthClient.clientId,
-    set: values,
-  });
-
-  console.log(`upserted trusted client: ${client.clientId}`);
+  await seedOAuthClient(client);
 }
 
 const userCount = await db.select().from(user);

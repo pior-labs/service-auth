@@ -25,7 +25,7 @@ The provider is configured with:
 
 - `loginPage: "/sign-in"`, served by the SPA fallback
 - scopes: `openid`, `profile`, `email`, `offline_access`
-- trusted clients cached by ID: `finlens` and `cookbook`
+- trusted clients cached by ID: `finlens`, `cookbook`, and `assistant` when configured
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
 
@@ -97,7 +97,7 @@ Every app that uses this SSO provider must be registered as a trusted OAuth clie
      uri: "https://myapp.szarans.ca",
      redirectUris: [
        "https://myapp.szarans.ca/api/auth/oauth2/callback/auth-pior",
-       "http://localhost:3001/api/auth/oauth2/callback/auth-pior",
+       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
      ],
    },
    ```
@@ -148,3 +148,30 @@ No signup UI, password reset UI, email sending, social login, MFA, admin UI, org
 ## `prompt=login`
 
 The API intercepts `/api/auth/oauth2/authorize?prompt=login`, clears the central session cookie, and redirects back to the same authorize request with a marker. That forces the OAuth Provider plugin to send the browser to `/sign-in` even if a central session existed.
+
+## Szarans Assistant registration
+
+Assistant uses client ID `assistant`, canonical origin `https://chat.szarans.ca`,
+and cookie prefix `szarans-assistant` in its own application. Set a fresh
+`ASSISTANT_CLIENT_SECRET` in the service environment and the same plaintext value
+as `CENTRAL_AUTH_CLIENT_SECRET` in the Assistant API environment. The separate
+Assistant `BETTER_AUTH_SECRET` must be independently generated. No secrets belong
+in frontend variables or Git.
+
+Without `ASSISTANT_CLIENT_SECRET`, existing clients continue working and the
+Assistant client is omitted. After configuring it, restart the service so its
+trusted-client cache includes Assistant, then register only this client:
+
+```bash
+pnpm --filter @auth/api db:seed:assistant
+```
+
+This upserts a hashed secret, exact production/localhost:5173 callbacks,
+`client_secret_post`, and required PKCE without creating/changing household users.
+It does not deploy Assistant. Merge/deployment approval belongs to Piotr.
+Assistant application sign-out revokes only its app session; it does not log out
+of central SSO or revoke sessions in other applications.
+
+Run `pnpm --filter @auth/api test:assistant-client` for an isolated Docker/Postgres
+registration regression check (hashed secret, rotation, exact callbacks, PKCE and
+unchanged users/other clients). This test never connects to production.
