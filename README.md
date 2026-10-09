@@ -160,18 +160,20 @@ in frontend variables or Git.
 
 Without `ASSISTANT_CLIENT_SECRET`, existing clients continue working and the
 Assistant client is omitted. After configuring it, restart the service so its
-trusted-client cache includes Assistant, then register only this client:
+trusted-client cache includes Assistant, then run the existing seed command:
 
 ```bash
-pnpm --filter @auth/api db:seed:assistant
+pnpm db:seed
 ```
 
-This upserts a hashed secret, exact production/localhost:5173 callbacks,
-`client_secret_post`, and required PKCE without creating/changing household users.
+The existing seed skips users already present and upserts all configured clients,
+including Assistant with its hashed secret, exact production/localhost:5173
+callbacks, `client_secret_post`, and required PKCE. Keep the existing household
+seed variables and other client secrets configured as before.
 It does not deploy Assistant. Merge/deployment approval belongs to Piotr.
 Assistant application sign-out revokes only its app session; it does not log out
 of central SSO or revoke sessions in other applications.
 
 Run `pnpm --filter @auth/api test:assistant-client` for an isolated Docker/Postgres
 registration regression check (hashed secret, rotation, exact callbacks, PKCE and
-unchanged users/other clients). This test never connects to production.
+preserved existing users and unrelated clients). This test never connects to production.
