@@ -152,30 +152,3 @@ No signup UI, password reset UI, email sending, social login, MFA, admin UI, org
 ## `prompt=login`
 
 The API intercepts `/api/auth/oauth2/authorize?prompt=login`, clears the central session cookie, and redirects back to the same authorize request with a marker. That forces the OAuth Provider plugin to send the browser to `/sign-in` even if a central session existed.
-
-## Szarans Assistant registration
-
-Assistant uses client ID `assistant`, canonical origin `https://chat.szarans.ca`,
-and cookie prefix `szarans-assistant` in its own application. Set a fresh
-`ASSISTANT_CLIENT_SECRET` in the service environment and the same plaintext value
-as `CENTRAL_AUTH_CLIENT_SECRET` in the Assistant API environment. The separate
-Assistant `BETTER_AUTH_SECRET` must be independently generated. No secrets belong
-in frontend variables or Git.
-
-Assistant follows the same configuration pattern as Finance and Cookbook and is
-always included in the client registry. Configure its real secret before seeding;
-the `change-me-assistant` fallback is only a development placeholder. Restart
-service-auth to load the updated trusted-client cache, then run the existing seed
-command:
-
-```bash
-pnpm db:seed
-```
-
-The existing seed skips users already present and upserts all configured clients,
-including Assistant with its hashed secret, exact production/localhost:5173
-callbacks, `client_secret_post`, and required PKCE. Keep the existing household
-seed variables and other client secrets configured as before.
-It does not deploy Assistant. Merge/deployment approval belongs to Piotr.
-Assistant application sign-out revokes only its app session; it does not log out
-of central SSO or revoke sessions in other applications.
