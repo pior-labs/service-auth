@@ -24,6 +24,16 @@ export const oauthClients = [
       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
     ],
   },
+  {
+    clientId: "assistant",
+    clientSecret: env.assistantClientSecret,
+    name: "Szarans Assistant",
+    uri: "https://chat.szarans.ca",
+    redirectUris: [
+      "https://chat.szarans.ca/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
+    ],
+  },
 ] as const;
 
 export const trustedClientIds = new Set(oauthClients.map((client) => client.clientId));

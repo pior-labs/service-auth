@@ -59,4 +59,5 @@ export const env = {
   refreshTokenExpiresIn: intEnv("OAUTH_REFRESH_TOKEN_EXPIRES_IN_SECONDS", 60 * 60 * 24 * 90),
   finlensClientSecret: requiredEnv("FINLENS_CLIENT_SECRET", "change-me-finlens"),
   cookbookClientSecret: requiredEnv("COOKBOOK_CLIENT_SECRET", "change-me-cookbook"),
+  assistantClientSecret: requiredEnv("ASSISTANT_CLIENT_SECRET", "change-me-assistant"),
 };

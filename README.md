@@ -25,7 +25,7 @@ The provider is configured with:
 
 - `loginPage: "/sign-in"`, served by the SPA fallback
 - scopes: `openid`, `profile`, `email`, `offline_access`
-- trusted clients cached by ID: `finlens` and `cookbook`
+- trusted clients cached by ID: `finlens`, `cookbook`, and `assistant`
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
 
@@ -34,7 +34,7 @@ ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` cu
 ## Setup
 
 1. For local development, create a logical Postgres database named `auth`. Production database and role provisioning is owned by `pior-labs/platform-deploy`.
-2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords.
+2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords, including the Finance, Cookbook, and Assistant client secrets listed under [Seeding](#seeding).
 3. Install dependencies with `pnpm install` from this directory.
 4. Apply the checked-in migration with `pnpm db:migrate`.
 5. Seed users and clients with `pnpm db:seed`.
@@ -62,14 +62,17 @@ In production the issuer is `https://auth.szarans.ca/api/auth`. Platform Caddy r
 
 ## Local verification (localhost)
 
-The intended local setup mirrors production's single front door: run both processes with `pnpm dev`. The Vite dev server on `http://localhost:5173` serves the `/sign-in` SPA and proxies `/api/*` to the API on `http://localhost:3000`, so `http://localhost:5173` is the local issuer origin.
+For development of service-auth itself, the local setup mirrors production's single front door: run both processes with `pnpm dev`. The Vite dev server on `http://localhost:5173` serves the `/sign-in` SPA and proxies `/api/*` to the API on `http://localhost:3000`, so `http://localhost:5173` is the local issuer origin.
 
 1. Ensure Postgres is running and the `DATABASE_URL` database exists.
 2. `pnpm db:migrate` then `pnpm db:seed`.
 3. `pnpm dev` (starts API on `:3000` and web on `:5173`).
-4. Point the client app (e.g. FinLens running on `http://localhost:3001`) at the discovery URL `http://localhost:5173/api/auth/.well-known/openid-configuration`.
 
-The full authorization-code + PKCE flow (`authorize` -> `/sign-in` -> `token` -> `userinfo`, plus `refresh_token`) has been verified end to end against a local client on `http://localhost:3001`.
+The local discovery URL is `http://localhost:5173/api/auth/.well-known/openid-configuration`. Testing a separate client against this local provider requires isolated ports and an explicitly registered callback.
+
+Historical provider verification exercised the full authorization-code + PKCE flow (`authorize` -> `/sign-in` -> `token` -> `userinfo`, plus `refresh_token`) against a client on `http://localhost:3001`. That port is not part of the current application callback registrations.
+
+For normal Finance, Cookbook, or Szarans Assistant development, run one application at a time on `http://localhost:5173` and use hosted `https://auth.szarans.ca/api/auth`; do not run local service-auth alongside it. All three clients register `http://localhost:5173/api/auth/oauth2/callback/auth-pior`. Each application must use its own cookie prefix; Assistant uses `szarans-assistant`.
 
 Baseline service checks:
 
@@ -97,7 +100,7 @@ Every app that uses this SSO provider must be registered as a trusted OAuth clie
      uri: "https://myapp.szarans.ca",
      redirectUris: [
        "https://myapp.szarans.ca/api/auth/oauth2/callback/auth-pior",
-       "http://localhost:3001/api/auth/oauth2/callback/auth-pior",
+       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
      ],
    },
    ```
@@ -122,6 +125,7 @@ Required OAuth client env (one per registered client):
 
 - `FINLENS_CLIENT_SECRET`
 - `COOKBOOK_CLIENT_SECRET`
+- `ASSISTANT_CLIENT_SECRET`
 
 Seed command:
 
