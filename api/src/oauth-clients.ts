@@ -2,6 +2,16 @@ import { env } from "./env.js";
 
 export const oauthClients = [
   {
+    clientId: "tasks",
+    clientSecret: env.tasksClientSecret,
+    name: "Tasks",
+    uri: "https://tasks.szarans.ca",
+    redirectUris: [
+      "https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
+    ],
+  },
+  {
     clientId: "finlens",
     clientSecret: env.finlensClientSecret,
     name: "FinLens",

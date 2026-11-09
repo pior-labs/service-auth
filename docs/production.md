@@ -173,3 +173,17 @@ The runner executing these workflows must:
 - have `curl` installed
 
 The runner user does not need the database connection string in GitHub. Docker mounts the server-side secret into the API and one-off migration containers.
+
+## Tasks client
+
+The `tasks` client uses `TASKS_CLIENT_SECRET` from private Auth configuration
+(`AUTH_ENV` in production), matching Tasks' server-only
+`CENTRAL_AUTH_CLIENT_SECRET`. Both exact callbacks are registered:
+
+- `http://localhost:5173/api/auth/oauth2/callback/auth-pior`
+- `https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior`
+
+Before activating this change, add the dedicated secret to `AUTH_ENV`. After
+review and merge, run **Bootstrap Auth Production** to upsert the hashed client
+secret, then **Deploy Auth Production** to reload cached registrations. Existing
+seed-user configuration is still required; do not create replacement users.

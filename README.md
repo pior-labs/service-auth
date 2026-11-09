@@ -126,6 +126,7 @@ Required OAuth client env (one per registered client):
 - `FINLENS_CLIENT_SECRET`
 - `COOKBOOK_CLIENT_SECRET`
 - `ASSISTANT_CLIENT_SECRET`
+- `TASKS_CLIENT_SECRET`
 
 Seed command:
 
@@ -152,3 +153,17 @@ No signup UI, password reset UI, email sending, social login, MFA, admin UI, org
 ## `prompt=login`
 
 The API intercepts `/api/auth/oauth2/authorize?prompt=login`, clears the central session cookie, and redirects back to the same authorize request with a marker. That forces the OAuth Provider plugin to send the browser to `/sign-in` even if a central session existed.
+
+## Tasks client
+
+The `tasks` client uses `TASKS_CLIENT_SECRET` from private Auth configuration
+(`AUTH_ENV` in production), matching Tasks' server-only
+`CENTRAL_AUTH_CLIENT_SECRET`. Both exact callbacks are registered:
+
+- `http://localhost:5173/api/auth/oauth2/callback/auth-pior`
+- `https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior`
+
+Before activating this change, add the dedicated secret to `AUTH_ENV`. After
+review and merge, run **Bootstrap Auth Production** to upsert the hashed client
+secret, then **Deploy Auth Production** to reload cached registrations. Existing
+seed-user configuration is still required; do not create replacement users.
