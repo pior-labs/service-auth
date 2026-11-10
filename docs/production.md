@@ -17,7 +17,7 @@ pior_data
 
 The generated connection string targets database `auth` with the restricted role `auth_app`. It remains on the server and is mounted into the API container as a Compose secret.
 
-## Required production secret
+## Required production secrets
 
 ### `AUTH_ENV`
 
@@ -60,6 +60,35 @@ https://cookbook.szarans.ca/api/auth/oauth2/callback/auth-pior
 
 The exact `COOKBOOK_CLIENT_SECRET` value must also be configured in the Cookbook production environment.
 
+### `TASKS_CLIENT_SECRET`
+
+Set this as an individual GitHub Actions secret in the `PRODUCTION` environment,
+separate from the existing multiline `AUTH_ENV`. Use a generated 32-byte value
+encoded as 64 lowercase hex characters (`openssl rand -hex 32`), and supply the
+same value as the Tasks application's `CENTRAL_AUTH_CLIENT_SECRET`.
+
+Both Bootstrap and Deploy read this secret explicitly, validate it before
+changing `.env`, remove any stale Tasks assignment from the rendered `AUTH_ENV`,
+and append the separate value. The remaining `AUTH_ENV` settings stay intact.
+The runtime file is private (mode 0600). No existing secret needs to be read back
+or replaced to add or rotate this client credential.
+
+Upload only the raw value, not `TASKS_CLIENT_SECRET=...`, from a private file or
+stdin. For example, when a mode-0600 file contains only the raw value:
+
+```sh
+gh secret set TASKS_CLIENT_SECRET --repo pior-labs/service-auth \
+  --env PRODUCTION < /private/path/tasks-client-secret
+```
+
+Do not print the value, place it in command arguments, or commit the private
+file. The workflows require this individual secret; they do not fall back to an
+embedded Tasks value in `AUTH_ENV`. Existing clients remain in `AUTH_ENV` for
+now. Secret upload alone does not reseed clients or restart hosted Auth.
+
+Run `pnpm test` to exercise both workflows' actual environment-writing shell
+blocks using synthetic values. The tests do not connect to GitHub or production.
+
 ## Optional production variables
 
 | Variable | Default | Purpose |
@@ -100,7 +129,7 @@ The workflow:
 
 1. requires the dispatch confirmation `bootstrap-auth`
 2. pulls `origin/main` into `/opt/docker/service-auth`
-3. writes the non-database application environment from `AUTH_ENV`
+3. writes the non-database environment from `AUTH_ENV` plus separate `TASKS_CLIENT_SECRET`
 4. validates `pior_data` and `pior_edge`
 5. validates that the platform-generated database secret can be mounted
 6. builds the API image
@@ -116,7 +145,7 @@ Run this workflow after bootstrap and after merging production-ready changes.
 The workflow:
 
 1. pulls `origin/main` into `/opt/docker/service-auth`
-2. writes the non-database application environment from `AUTH_ENV`
+2. writes the non-database environment from `AUTH_ENV` plus separate `TASKS_CLIENT_SECRET`
 3. validates the external networks and database secret mount
 4. builds the API and web images
 5. applies database migrations
@@ -177,13 +206,14 @@ The runner user does not need the database connection string in GitHub. Docker m
 ## Tasks client
 
 The `tasks` client uses `TASKS_CLIENT_SECRET` from private Auth configuration
-(`AUTH_ENV` in production), matching Tasks' server-only
+(a separate GitHub Actions secret in production), matching Tasks' server-only
 `CENTRAL_AUTH_CLIENT_SECRET`. Both exact callbacks are registered:
 
 - `http://localhost:5173/api/auth/oauth2/callback/auth-pior`
 - `https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior`
 
-Before activating this change, add the dedicated secret to `AUTH_ENV`. After
+Before activating this change, set the separate `TASKS_CLIENT_SECRET` secret
+in the `PRODUCTION` environment. Leave the existing `AUTH_ENV` intact. After
 review and merge, run **Bootstrap Auth Production** to upsert the hashed client
 secret, then **Deploy Auth Production** to reload cached registrations. Existing
 seed-user configuration is still required; do not create replacement users.
