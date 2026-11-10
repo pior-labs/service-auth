@@ -12,10 +12,11 @@ SECRET = 'a1' * 32
 
 
 def environment_writer(workflow):
+    # Both release operations execute this same production writer. Keep testing
+    # its real shell rather than duplicating its behavior in Python.
     source = (ROOT / '.github/workflows' / workflow).read_text()
-    step = source.split('      - name: Write production environment\n', 1)[1]
-    block = step.split('        run: |\n', 1)[1].split('\n      - name:', 1)[0]
-    return textwrap.dedent(block)
+    assert 'run: python3 scripts/deploy.py' in source
+    return (ROOT / 'scripts/write-production-env.sh').read_text()
 
 
 class ProductionEnvironment(unittest.TestCase):

@@ -1,6 +1,6 @@
 # Production workflows
 
-Production uses a persistent checkout at `/opt/docker/service-auth` on the OptiPlex server. Both workflows run on the dedicated Auth self-hosted runner and update that checkout from `origin/main` before doing any work.
+Production uses CI-built API and web images, selected by successful main CI run and exact optional attempt. Both manual workflows share the `auth-production` lock on the dedicated Auth runner. They stage exact release configuration beneath `/opt/docker/service-auth/releases/`; neither fetches a moving main branch nor builds on the production server.
 
 The shared PostgreSQL cluster, Auth database, restricted login role, and connection secret are owned by `pior-labs/platform-deploy`. This repository owns the Auth schema migration and seed data.
 
@@ -86,8 +86,7 @@ file. The workflows require this individual secret; they do not fall back to an
 embedded Tasks value in `AUTH_ENV`. Existing clients remain in `AUTH_ENV` for
 now. Secret upload alone does not reseed clients or restart hosted Auth.
 
-Run `pnpm test` to exercise both workflows' actual environment-writing shell
-blocks using synthetic values. The tests do not connect to GitHub or production.
+Run `pnpm test` to exercise the shared production environment writer's actual shell using synthetic values. The tests do not connect to GitHub or production.
 
 ## Optional production variables
 
@@ -96,7 +95,7 @@ blocks using synthetic values. The tests do not connect to GitHub or production.
 | `AUTH_DATABASE_URL_FILE` | `/opt/docker/pior-labs/secrets/service-auth/database-url` | Host path to the platform-generated Auth connection secret |
 | `DATA_NETWORK` | `pior_data` | External Docker network shared with PostgreSQL |
 
-The workflow writes these values and the production Compose override into `/opt/docker/service-auth/.env` so subsequent server-side Compose commands use the same configuration.
+The writer stages these values in the selected release's private `.env`. Active host commands use `$DEPLOY_DIR/current/compose.json`, which contains the resolved configuration.
 
 ## Compose model
 
@@ -128,11 +127,11 @@ Run this workflow once before the first deployment, and again when seed users or
 The workflow:
 
 1. requires the dispatch confirmation `bootstrap-auth`
-2. pulls `origin/main` into `/opt/docker/service-auth`
+2. resolves a successful main CI run/attempt and checks out its exact configuration
 3. writes the non-database environment from `AUTH_ENV` plus separate `TASKS_CLIENT_SECRET`
 4. validates `pior_data` and `pior_edge`
 5. validates that the platform-generated database secret can be mounted
-6. builds the API image
+6. pulls the verified API image
 7. applies the checked-in migration
 8. seeds the two users and trusted OAuth clients
 
@@ -144,10 +143,10 @@ Run this workflow after bootstrap and after merging production-ready changes.
 
 The workflow:
 
-1. pulls `origin/main` into `/opt/docker/service-auth`
+1. resolves a successful main CI run/attempt and checks out its exact configuration
 2. writes the non-database environment from `AUTH_ENV` plus separate `TASKS_CLIENT_SECRET`
 3. validates the external networks and database secret mount
-4. builds the API and web images
+4. pulls the verified API and web images
 5. applies database migrations
 6. recreates the Auth services
 7. waits for the API health check inside the container
@@ -171,18 +170,13 @@ network outage; health checks report health without triggering a restart.
 The migration, seed, and secret-validation jobs use `docker compose run --rm`,
 which overrides the service restart policy so these one-off jobs do not restart.
 
-The **Deploy Auth Production** workflow applies updated Compose settings with
-`docker compose up -d --remove-orphans`. However, the checked-in workflow requires
-Git and a checkout on the server, so it cannot currently run on a server without
-Git. For this configuration-only change, copy the updated `docker-compose.yml`
-and `docker-compose.production.yml` from your local `main` checkout into
-`/opt/docker/service-auth` using your existing file-transfer method, preserving
-the server's `.env` and secrets. Then apply the same Compose step manually:
+Use **Deploy Auth Production** with a verified main CI run to apply configuration
+changes. For manual diagnostics after a successful release:
 
 ```bash
-cd /opt/docker/service-auth
-docker compose -f docker-compose.yml -f docker-compose.production.yml config --quiet
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --remove-orphans
+cd "$DEPLOY_DIR/current"
+export COMPOSE_FILE="$PWD/compose.json"
+docker compose config --quiet
 docker inspect --format '{{.Name}} {{.HostConfig.RestartPolicy.Name}}' auth-api auth-web
 ```
 
@@ -196,10 +190,10 @@ The runner executing these workflows must:
 
 - be available to the `service-auth` repository
 - have the labels `self-hosted`, `linux`, and `service-auth`
-- authenticate the existing checkout's Git remote as the runner service account
+- have Git available for Actions checkout; credentials use the workflow token
 - have write access to `/opt/docker/service-auth`
 - be able to run Docker without `sudo`
-- have `curl` installed
+- have Python 3, Bash and `curl` installed
 
 The runner user does not need the database connection string in GitHub. Docker mounts the server-side secret into the API and one-off migration containers.
 
@@ -217,3 +211,45 @@ in the `PRODUCTION` environment. Leave the existing `AUTH_ENV` intact. After
 review and merge, run **Bootstrap Auth Production** to upsert the hashed client
 secret, then **Deploy Auth Production** to reload cached registrations. Existing
 seed-user configuration is still required; do not create replacement users.
+
+## Verified release activation and recovery
+
+CI now runs production-environment regression tests, typechecks, application
+builds and API/web Docker builds. Only successful main pushes publish GHCR images
+and an attempt-specific `release-<attempt>` manifest. Existing registry package
+access must include this repository. PR builds never publish images.
+
+Before first use, set a separate `COMPOSE_PROJECT_NAME` Actions secret matching
+the existing production container project label. Keep `AUTH_ENV` and the separately
+validated `TASKS_CLIENT_SECRET`; legacy database and client-secret entries are
+still removed/replaced by the real environment writer. Platform-managed database
+credentials remain a Compose secret, not an Actions database password. The runner
+needs Python 3, Bash, curl, and Compose with `up --wait`. `DEPLOY_DIR` defaults to
+`/opt/docker/service-auth`; it must be writable and dedicated to Auth.
+
+After merge, wait for all main CI checks and image publication. In either manual
+workflow select branch main and enter the **full CI run ID from its URL**, not
+the displayed run number. An optional `ci_run_attempt` selects an exact successful
+attempt. Bootstrap still requires `bootstrap-auth` and runs migration plus seed
+only. It never promotes a deployed-release record or implicitly starts Auth.
+Deploy runs migration, waits for API/web health, probes HTTPS health/sign-in, and
+validates public OIDC discovery through the shipped verifier. After client
+registration changes, bootstrap and then deploy that same verified release to
+refresh Auth's in-memory registrations. Both operations are serialized together.
+
+The legacy checkout is not the active configuration after first rollout. For
+host operations, use `cd "$DEPLOY_DIR/current"` and
+`export COMPOSE_FILE="$PWD/compose.json"`. Resolved configuration contains secrets;
+keep it private and never upload it. `.deployments/current.json` and
+`previous.json` record healthy deployments. `attempt.json` includes failures;
+`bootstrap.json` records successful seeding without changing the current link.
+Failure can leave changed schemas, seed data or containers; records do not imply
+an automatic recovery. Inspect the attempted runtime when diagnosing it.
+
+Application rollback selects the earlier recorded CI `run_id` and `run_attempt`
+through Deploy. It uses current secrets and does not reverse migrations or seed
+users/clients. Confirm schema and identity-registration compatibility first.
+There is no previous recorded release when first migrating from source builds.
+Keep release manifests (90-day Actions retention) and corresponding images,
+especially current and previous ones. Host runtime cleanup must preserve selected
+runtimes and platform-owned state.

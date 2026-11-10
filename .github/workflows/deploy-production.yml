@@ -2,176 +2,88 @@ name: Deploy Auth Production
 
 on:
   workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Full successful main CI run ID from the URL (not the displayed run number)
+        required: true
+        type: string
+      ci_run_attempt:
+        description: Optional exact CI attempt (leave blank for latest; use the recorded attempt for rollback)
+        required: false
+        type: string
 
 permissions:
   contents: read
   packages: read
+  actions: read
 
+# Every future maintenance workflow that mutates this repository's production must use
+# this same group. In-flight migrations must never be cancelled by a new deploy.
 concurrency:
-  group: auth-production-deploy
+  group: auth-production
   cancel-in-progress: false
 
 jobs:
+  resolve:
+    timeout-minutes: 5
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      attempt: ${{ steps.release.outputs.attempt }}
+      run_id: ${{ steps.release.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve successful CI release
+        id: release
+        env:
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+          CI_RUN_ATTEMPT: ${{ inputs.ci_run_attempt }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/release.py resolve
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deployment-release
+          path: release.json
+          if-no-files-found: error
+          retention-days: 90
+
   deploy:
-    name: Pull and deploy Auth
+    needs: resolve
     environment: PRODUCTION
-    runs-on:
-      - self-hosted
-      - linux
-      - service-auth
+    runs-on: [self-hosted, linux, service-auth]
+    timeout-minutes: 20
     env:
-      COMPOSE_FILE: docker-compose.yml:docker-compose.production.yml
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/docker/service-auth' }}
+      APP_ENV: ${{ secrets.AUTH_ENV }}
+      TASKS_CLIENT_SECRET: ${{ secrets.TASKS_CLIENT_SECRET }}
       AUTH_DATABASE_URL_FILE: ${{ vars.AUTH_DATABASE_URL_FILE || '/opt/docker/pior-labs/secrets/service-auth/database-url' }}
       DATA_NETWORK: ${{ vars.DATA_NETWORK || 'pior_data' }}
-      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    defaults:
-      run:
-        shell: bash
-        working-directory: /opt/docker/service-auth
-
+      COMPOSE_PROJECT_NAME: ${{ secrets.COMPOSE_PROJECT_NAME }}
+      EXPECTED_SHA: ${{ needs.resolve.outputs.sha }}
+      EXPECTED_RUN_ID: ${{ needs.resolve.outputs.run_id }}
+      EXPECTED_ATTEMPT: ${{ needs.resolve.outputs.attempt }}
     steps:
-      - name: Validate runner prerequisites
-        run: |
-          set -euo pipefail
-          test -d .git || {
-            echo "/opt/docker/service-auth is not a Git checkout"
-            exit 1
-          }
-          command -v docker >/dev/null
-          command -v curl >/dev/null
-          docker compose version
-
-      - name: Update production checkout
-        run: |
-          set -euo pipefail
-          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-            echo "Tracked files in the production checkout have local changes."
-            git status --short
-            exit 1
-          fi
-          git fetch origin main
-          git checkout main
-          git reset --hard origin/main
-
-      - name: Write production environment
-        env:
-          AUTH_ENV: ${{ secrets.AUTH_ENV }}
-          TASKS_CLIENT_SECRET: ${{ secrets.TASKS_CLIENT_SECRET }}
-        run: |
-          set -euo pipefail
-          if [ -z "${AUTH_ENV:-}" ]; then
-            echo "Missing required production secret: AUTH_ENV"
-            exit 1
-          fi
-
-          # A fixed-format generated value is safe to append to dotenv unquoted.
-          if [[ ! "${TASKS_CLIENT_SECRET:-}" =~ ^[0-9a-f]{64}$ ]]; then
-            echo "TASKS_CLIENT_SECRET must be a separate secret containing 64 lowercase hex characters."
-            exit 1
-          fi
-
-          umask 077
-          printf '%s\n' "$AUTH_ENV" > .env
-          sed -i \
-            -e '/^DATABASE_URL=/d' \
-            -e '/^DATABASE_URL_FILE=/d' \
-            -e '/^AUTH_DATABASE_URL_FILE=/d' \
-            -e '/^SHARED_DOCKER_NETWORK=/d' \
-            -e '/^DATA_NETWORK=/d' \
-            -e '/^AUTH_HOST_PORT=/d' \
-            -e '/^COMPOSE_FILE=/d' \
-            -e '/^[[:space:]]*\(export[[:space:]]\+\)\?TASKS_CLIENT_SECRET[[:space:]]*=/d' \
-            .env
-
-          {
-            printf '\n'
-            printf 'COMPOSE_FILE=%s\n' "$COMPOSE_FILE"
-            printf 'AUTH_DATABASE_URL_FILE=%s\n' "$AUTH_DATABASE_URL_FILE"
-            printf 'DATA_NETWORK=%s\n' "$DATA_NETWORK"
-            printf 'TASKS_CLIENT_SECRET=%s\n' "$TASKS_CLIENT_SECRET"
-          } >> .env
-          chmod 600 .env
-
-      - name: Validate production configuration
-        run: |
-          set -euo pipefail
-
-          docker network inspect "$DATA_NETWORK" >/dev/null || {
-            echo "Required platform data network does not exist: $DATA_NETWORK"
-            exit 1
-          }
-          docker network inspect pior_edge >/dev/null || {
-            echo "Required platform edge network does not exist: pior_edge"
-            exit 1
-          }
-
-          docker compose config --quiet
-
-      - name: Build Auth images
-        run: docker compose build
-
-      - name: Validate database secret mount
-        run: |
-          docker compose run --rm --no-deps api node -e '
-            const { readFileSync } = require("node:fs");
-            const path = process.env.DATABASE_URL_FILE;
-            if (!path) throw new Error("DATABASE_URL_FILE is not configured");
-            const value = readFileSync(path, "utf8").trim();
-            if (!value.startsWith("postgresql://") && !value.startsWith("postgres://")) {
-              throw new Error("Mounted database secret is not a PostgreSQL URL");
-            }
-            console.log("Auth database secret is mounted.");
-          '
-
-      - name: Apply database migration
-        run: docker compose run --rm api node dist/scripts/migrate.js
-
-      - name: Start Auth services
-        run: docker compose up -d --remove-orphans
-
-      - name: Wait for Auth API health
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 30); do
-            if docker compose exec -T api wget -qO- http://127.0.0.1:3000/health; then
-              echo
-              exit 0
-            fi
-            sleep 2
-          done
-
-          echo "Auth API did not become healthy inside its container."
-          docker compose ps
-          docker compose logs --tail=100 api
-          exit 1
-
-      - name: Verify Auth through production Caddy
-        run: |
-          set -euo pipefail
-
-          curl --fail --silent --show-error \
-            --resolve auth.szarans.ca:443:127.0.0.1 \
-            https://auth.szarans.ca/health
-          echo
-
-          curl --fail --silent --show-error --output /dev/null \
-            --resolve auth.szarans.ca:443:127.0.0.1 \
-            https://auth.szarans.ca/sign-in
-
-      - name: Verify public OIDC discovery
-        run: |
-          set -euo pipefail
-          response=$(mktemp)
-          trap 'rm -f "$response"' EXIT
-          status=$(curl --silent --show-error --max-time 30 \
-            --output "$response" --write-out '%{http_code}' \
-            https://auth.szarans.ca/api/auth/.well-known/openid-configuration)
-          if [ "$status" != 200 ]; then
-            echo "Auth OIDC discovery returned HTTP $status; expected 200."
-            docker compose logs --tail=100 api
-            exit 1
-          fi
-          docker compose exec -T api node dist/scripts/verify-discovery.js < "$response"
-
-      - name: Show running services
-        run: docker compose ps
+      - uses: actions/checkout@v4
+      - name: Check out exact release configuration
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: deployment-release
+      - name: Isolate registry credentials
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/release-docker-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull, migrate, start and verify release
+        run: python3 scripts/deploy.py
+      - name: Remove registry credentials
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/release-docker-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
