@@ -25,7 +25,7 @@ The provider is configured with:
 
 - `loginPage: "/sign-in"`, served by the SPA fallback
 - scopes: `openid`, `profile`, `email`, `offline_access`
-- trusted clients cached by ID: `finlens`, `cookbook`, and `assistant`
+- trusted clients cached by ID: `finlens`, `cookbook`, `assistant`, and `tasks`
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
 
@@ -34,7 +34,7 @@ ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` cu
 ## Setup
 
 1. For local development, create a logical Postgres database named `auth`. Production database and role provisioning is owned by `pior-labs/platform-deploy`.
-2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords, including the Finance, Cookbook, and Assistant client secrets listed under [Seeding](#seeding).
+2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords, including the Finance, Cookbook, Assistant, and Tasks client secrets listed under [Seeding](#seeding).
 3. Install dependencies with `pnpm install` from this directory.
 4. Apply the checked-in migration with `pnpm db:migrate`.
 5. Seed users and clients with `pnpm db:seed`.
