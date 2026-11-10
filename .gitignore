@@ -20,3 +20,6 @@ dist/
 .codex
 .agents
 .claude
+
+# Python workflow regression test cache
+__pycache__/

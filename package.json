@@ -12,6 +12,7 @@
     "db:generate": "pnpm --filter @auth/api db:generate",
     "db:migrate": "pnpm --filter @auth/api db:migrate",
     "db:seed": "pnpm --filter @auth/api db:seed",
-    "reset-password": "pnpm --filter @auth/api reset-password"
+    "reset-password": "pnpm --filter @auth/api reset-password",
+    "test": "python3 -m unittest discover -s tests -v"
   }
 }

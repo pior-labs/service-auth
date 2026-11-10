@@ -25,7 +25,7 @@ The provider is configured with:
 
 - `loginPage: "/sign-in"`, served by the SPA fallback
 - scopes: `openid`, `profile`, `email`, `offline_access`
-- trusted clients cached by ID: `finlens`, `cookbook`, and `assistant`
+- trusted clients cached by ID: `finlens`, `cookbook`, `assistant`, and `tasks`
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
 
@@ -34,7 +34,7 @@ ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` cu
 ## Setup
 
 1. For local development, create a logical Postgres database named `auth`. Production database and role provisioning is owned by `pior-labs/platform-deploy`.
-2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords, including the Finance, Cookbook, and Assistant client secrets listed under [Seeding](#seeding).
+2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords, including the Finance, Cookbook, Assistant, and Tasks client secrets listed under [Seeding](#seeding).
 3. Install dependencies with `pnpm install` from this directory.
 4. Apply the checked-in migration with `pnpm db:migrate`.
 5. Seed users and clients with `pnpm db:seed`.
@@ -126,6 +126,7 @@ Required OAuth client env (one per registered client):
 - `FINLENS_CLIENT_SECRET`
 - `COOKBOOK_CLIENT_SECRET`
 - `ASSISTANT_CLIENT_SECRET`
+- `TASKS_CLIENT_SECRET`
 
 Seed command:
 
@@ -152,3 +153,18 @@ No signup UI, password reset UI, email sending, social login, MFA, admin UI, org
 ## `prompt=login`
 
 The API intercepts `/api/auth/oauth2/authorize?prompt=login`, clears the central session cookie, and redirects back to the same authorize request with a marker. That forces the OAuth Provider plugin to send the browser to `/sign-in` even if a central session existed.
+
+## Tasks client
+
+The `tasks` client uses `TASKS_CLIENT_SECRET` from private Auth configuration
+(a separate GitHub Actions secret in production), matching Tasks' server-only
+`CENTRAL_AUTH_CLIENT_SECRET`. Both exact callbacks are registered:
+
+- `http://localhost:5173/api/auth/oauth2/callback/auth-pior`
+- `https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior`
+
+Before activating this change, set the separate `TASKS_CLIENT_SECRET` secret
+in the `PRODUCTION` environment. Leave the existing `AUTH_ENV` intact. After
+review and merge, run **Bootstrap Auth Production** to upsert the hashed client
+secret, then **Deploy Auth Production** to reload cached registrations. Existing
+seed-user configuration is still required; do not create replacement users.
