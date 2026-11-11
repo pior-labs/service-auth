@@ -1,0 +1,48 @@
+{
+  "services": [
+    "api",
+    "web"
+  ],
+  "compose_files": [
+    "docker-compose.yml",
+    "docker-compose.production.yml"
+  ],
+  "migration": [
+    "node",
+    "dist/scripts/migrate.js"
+  ],
+  "seed": [
+    "node",
+    "dist/scripts/seed.js"
+  ],
+  "base_url": "https://auth.szarans.ca",
+  "health_paths": [
+    "/health",
+    "/sign-in"
+  ],
+  "environment_script": "write-production-env.sh",
+  "discovery": {
+    "url": "https://auth.szarans.ca/api/auth/.well-known/openid-configuration",
+    "command": [
+      "exec",
+      "-T",
+      "api",
+      "node",
+      "dist/scripts/verify-discovery.js"
+    ]
+  },
+  "build_secrets": [
+    "npm_token"
+  ],
+  "pre_migration": [
+    [
+      "run",
+      "--rm",
+      "--no-deps",
+      "api",
+      "node",
+      "-e",
+      "\n  const { readFileSync } = require(\"node:fs\");\n  const path = process.env.DATABASE_URL_FILE;\n  if (!path) throw new Error(\"DATABASE_URL_FILE is not configured\");\n  const value = readFileSync(path, \"utf8\").trim();\n  if (!value.startsWith(\"postgresql://\") && !value.startsWith(\"postgres://\")) {\n    throw new Error(\"Mounted database secret is not a PostgreSQL URL\");\n  }\n  console.log(\"Auth database secret is mounted.\");\n"
+    ]
+  ]
+}
