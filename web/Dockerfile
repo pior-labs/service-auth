@@ -9,10 +9,15 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY .npmrc .npmrc
 COPY api/package.json api/package.json
 COPY web/package.json web/package.json
+# pnpm only expands credentials from user-level config, so the registry auth
+# line lives in a temporary user config. It holds the literal ${NODE_AUTH_TOKEN};
+# the token itself comes from the build secret and is never written to a layer.
 RUN --mount=type=secret,id=npm_token,required=true \
+    printf '%s\n' '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' > /tmp/registry-auth.npmrc && \
     NODE_AUTH_TOKEN="$(cat /run/secrets/npm_token)" \
-    pnpm install --filter @auth/web --prod=false --frozen-lockfile \
-    && rm -f .npmrc
+    NPM_CONFIG_USERCONFIG=/tmp/registry-auth.npmrc \
+    pnpm install --filter @auth/web --prod=false --frozen-lockfile && \
+    rm /tmp/registry-auth.npmrc .npmrc
 
 FROM deps AS build
 ARG VITE_AUTH_BASE_URL=
