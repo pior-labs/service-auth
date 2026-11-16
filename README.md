@@ -35,7 +35,7 @@ ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` cu
 
 1. For local development, create a logical Postgres database named `auth`. Production database and role provisioning is owned by `pior-labs/platform-deploy`.
 2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords, including the Finance, Cookbook, Assistant, and Tasks client secrets listed under [Seeding](#seeding).
-3. Install dependencies with `pnpm install` from this directory.
+3. Install dependencies with `pnpm install` from this directory. `@pior-labs/design-system` comes from GitHub Packages: export a token with `read:packages` as `GITHUB_TOKEN` and add `//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}` to your user-level `~/.npmrc` (current pnpm ignores credentials in the committed `.npmrc`).
 4. Apply the checked-in migration with `pnpm db:migrate`.
 5. Seed users and clients with `pnpm db:seed`.
 6. Run locally with `pnpm dev`, or build and start the containers with Docker Compose.
