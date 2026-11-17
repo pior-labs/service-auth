@@ -74,7 +74,7 @@ The local discovery URL is `http://localhost:5173/api/auth/.well-known/openid-co
 
 Historical provider verification exercised the full authorization-code + PKCE flow (`authorize` -> `/sign-in` -> `token` -> `userinfo`, plus `refresh_token`) against a client on `http://localhost:3001`. That port is not part of the current application callback registrations.
 
-For normal Finance, Cookbook, or Szarans Assistant development, run one application at a time on `http://localhost:5173` and use hosted `https://auth.szarans.ca/api/auth`; do not run local service-auth alongside it. All three clients register `http://localhost:5173/api/auth/oauth2/callback/auth-pior`. Each application must use its own cookie prefix; Assistant uses `szarans-assistant`.
+For normal Finance, Cookbook, or Szarans Assistant development, run one application at a time on `http://localhost:5173` and use hosted `https://auth.szarans.ca/api/auth`; do not run local service-auth alongside it. Every client registers `http://localhost:5173/api/auth/callback/auth-pior` (Better Auth 1.7) and, until all apps run 1.7, `http://localhost:5173/api/auth/oauth2/callback/auth-pior`. Each application must use its own cookie prefix; Assistant uses `szarans-assistant`.
 
 Baseline service checks:
 
@@ -93,7 +93,7 @@ Every app that uses this SSO provider must be registered as a trusted OAuth clie
      myappClientSecret: requiredEnv("MYAPP_CLIENT_SECRET", "change-me-myapp"),
      ```
 
-2. **Add the client to `api/src/oauth-clients.ts`.** Give it a stable `clientId`, its canonical production `uri`, and the *exact* allowed callback URLs. For a Better Auth client app the callback path is `/api/auth/oauth2/callback/<provider-id>`; include the canonical production hostname and localhost so the same client works in local testing:
+2. **Add the client to `api/src/oauth-clients.ts`.** Give it a stable `clientId`, its canonical production `uri`, and the *exact* allowed callback URLs. For a Better Auth 1.7 client app the callback path is `/api/auth/callback/<provider-id>` (1.6 used `/api/auth/oauth2/callback/<provider-id>`; existing clients accept both until every app runs 1.7, see workspace ADR 0003). Include the canonical production hostname and localhost so the same client works in local testing:
    ```ts
    {
      clientId: "myapp",
@@ -101,14 +101,14 @@ Every app that uses this SSO provider must be registered as a trusted OAuth clie
      name: "MyApp",
      uri: "https://myapp.szarans.ca",
      redirectUris: [
-       "https://myapp.szarans.ca/api/auth/oauth2/callback/auth-pior",
-       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
+       "https://myapp.szarans.ca/api/auth/callback/auth-pior",
+       "http://localhost:5173/api/auth/callback/auth-pior",
      ],
    },
    ```
    `trustedClientIds` is derived from this array, so no other code change is needed.
 
-3. **Re-seed.** Run `pnpm db:seed`. The client is upserted with `authorization_code` + `refresh_token` grants, `client_secret_post` auth, PKCE required, and consent skipped. The seed **hashes the client secret** (SHA-256, base64url) before storing it, because the provider verifies incoming secrets against the hashed form; storing plaintext would make every token exchange fail with `invalid_client`.
+3. **Re-seed.** Run `pnpm db:seed` locally; in production, run the Bootstrap production workflow, which migrates and seeds. The client is upserted with `authorization_code` + `refresh_token` grants, `client_secret_post` auth, PKCE required, and consent skipped. The seed **hashes the client secret** (SHA-256, base64url) before storing it, because the provider verifies incoming secrets against the hashed form; storing plaintext would make every token exchange fail with `invalid_client`.
 
 4. **Configure the client app** with the issuer/discovery URL (see above), the registered `clientId` and its plaintext secret, the exact callback URL, and scopes `openid profile email offline_access`.
 
@@ -160,10 +160,13 @@ The API intercepts `/api/auth/oauth2/authorize?prompt=login`, clears the central
 
 The `tasks` client uses `TASKS_CLIENT_SECRET` from private Auth configuration
 (a separate GitHub Actions secret in production), matching Tasks' server-only
-`CENTRAL_AUTH_CLIENT_SECRET`. Both exact callbacks are registered:
+`CENTRAL_AUTH_CLIENT_SECRET`. These exact callbacks are registered (Better Auth
+1.6 and 1.7 paths during the upgrade, workspace ADR 0003):
 
 - `http://localhost:5173/api/auth/oauth2/callback/auth-pior`
+- `http://localhost:5173/api/auth/callback/auth-pior`
 - `https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior`
+- `https://tasks.szarans.ca/api/auth/callback/auth-pior`
 
 Before activating this change, set the separate `TASKS_CLIENT_SECRET` secret
 in the `PRODUCTION` environment. Leave the existing `AUTH_ENV` intact. After

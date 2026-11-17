@@ -1,5 +1,9 @@
 import { env } from "./env.js";
 
+// Better Auth 1.7 moved the client callback from /api/auth/oauth2/callback/:id
+// to /api/auth/callback/:id. Each client accepts both while the apps upgrade
+// one at a time (workspace ADR 0003); the old paths go once all four run 1.7.
+
 export const oauthClients = [
   {
     clientId: "tasks",
@@ -8,7 +12,9 @@ export const oauthClients = [
     uri: "https://tasks.szarans.ca",
     redirectUris: [
       "https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior",
+      "https://tasks.szarans.ca/api/auth/callback/auth-pior",
       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:5173/api/auth/callback/auth-pior",
     ],
   },
   {
@@ -21,7 +27,9 @@ export const oauthClients = [
     // development against the same OAuth client.
     redirectUris: [
       "https://finance.szarans.ca/api/auth/oauth2/callback/auth-pior",
+      "https://finance.szarans.ca/api/auth/callback/auth-pior",
       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:5173/api/auth/callback/auth-pior",
     ],
   },
   {
@@ -31,7 +39,9 @@ export const oauthClients = [
     uri: "https://cookbook.szarans.ca",
     redirectUris: [
       "https://cookbook.szarans.ca/api/auth/oauth2/callback/auth-pior",
+      "https://cookbook.szarans.ca/api/auth/callback/auth-pior",
       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:5173/api/auth/callback/auth-pior",
     ],
   },
   {
@@ -41,7 +51,9 @@ export const oauthClients = [
     uri: "https://chat.szarans.ca",
     redirectUris: [
       "https://chat.szarans.ca/api/auth/oauth2/callback/auth-pior",
+      "https://chat.szarans.ca/api/auth/callback/auth-pior",
       "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
+      "http://localhost:5173/api/auth/callback/auth-pior",
     ],
   },
 ] as const;
