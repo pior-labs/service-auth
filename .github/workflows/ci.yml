@@ -12,23 +12,28 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      # pnpm reads ~/.npmrc in every step, so the token it references is
+      # available job-wide rather than only during install.
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - name: Test release and deployment tooling
+      - name: Test release, deployment and version tooling
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
+      - name: Check runtime versions
+        run: python3 scripts/check_versions.py
+      # Reads packageManager from package.json; do not repeat the version here.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
       # pnpm only expands credentials from user-level config. The literal
-      # ${NODE_AUTH_TOKEN} is expanded at install time; no token is written.
+      # ${NODE_AUTH_TOKEN} is expanded at runtime; no token is written.
       - name: Configure GitHub Packages auth
-        run: echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
+        run: |
+          # shellcheck disable=SC2016 # pnpm, not the shell, expands the literal
+          echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
       - run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: pnpm test
       - run: pnpm typecheck
       - run: pnpm build
