@@ -2,7 +2,7 @@
   "name": "auth",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.8.1",
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
     "dev": "pnpm --parallel --filter @auth/api --filter @auth/web dev",
     "dev:api": "pnpm --filter @auth/api dev",
