@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": "26.x"
+  },
   "scripts": {
     "dev": "pnpm --parallel --filter @auth/api --filter @auth/web dev",
     "dev:api": "pnpm --filter @auth/api dev",

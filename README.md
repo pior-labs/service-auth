@@ -7,7 +7,9 @@ Private household SSO provider for two users. This is a standalone service using
 - API: Hono, TypeScript, Better Auth, `@better-auth/oauth-provider`
 - DB: Drizzle schema on Postgres, using its own logical database named `auth`
 - Web: Vite, React, TypeScript, Tailwind v4, shadcn-style UI primitives
-- Package manager: pnpm
+- Runtime: the Node.js version in `.node-version`; Dockerfiles pin the same version by digest
+- Package manager: pnpm, version from `packageManager` (any installed pnpm switches to it; Node.js 25+ no longer bundles Corepack)
+- CI runs `scripts/check_versions.py`, which fails when Dockerfiles, workflows or `engines` disagree with those sources
 
 ## Layout
 
