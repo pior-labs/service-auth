@@ -258,3 +258,14 @@ There is no previous recorded release when first migrating from source builds.
 Keep release manifests (90-day Actions retention) and corresponding images,
 especially current and previous ones. Host runtime cleanup must preserve selected
 runtimes and platform-owned state.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| A client gets `invalid_client` on token exchange | The app's `CENTRAL_AUTH_CLIENT_SECRET` differs from the Auth client secret, or a secret was stored unhashed | Make both sides use the same raw value, then Bootstrap (the seed stores the hash) and Deploy |
+| Auth redirects to `/api/auth/error?error=invalid_redirect` | The app's callback URL is not registered exactly (scheme, host, path, no trailing slash) | Add it to `api/src/oauth-clients.ts`, then Bootstrap and Deploy |
+| A client registration change has no effect | Running Auth keeps trusted client registrations in memory | After Bootstrap, Deploy the same verified release to restart Auth |
+| Token exchange returns HTTP 500 and logs mention `jwks` | The schema migration has not run | Bootstrap or Deploy, both of which run migrations |
+| A Better Auth 1.6 client rejects the login with an issuer error | The app's `CENTRAL_AUTH_ISSUER` is not exactly `https://auth.szarans.ca/api/auth` | Correct the app's setting. Better Auth 1.7 clients take the issuer from discovery instead |
+| HTTPS requests to Auth return 502 | Platform routing cannot reach the Auth containers | Check the platform Caddy route and shared networks in `platform-deploy`, then the Auth container health |
