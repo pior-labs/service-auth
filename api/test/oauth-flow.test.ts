@@ -381,4 +381,11 @@ test("seed stores hashed client secrets and only Better Auth 1.7 callbacks", asy
     assert.equal(row.tokenEndpointAuthMethod, "client_secret_post");
     assert.deepEqual(row.clientCredentialsScopes, []);
   }
+  // 0000 creates the 1.6 columns, 0001 backfills from them and 0002 drops
+  // them; migrate ran twice, so 0001 also has to work once they are gone.
+  const legacy = await fixture.db.query(
+    `select column_name from information_schema.columns
+     where table_schema = current_schema() and table_name = 'oauthClient' and column_name in ('type', 'public')`,
+  );
+  assert.deepEqual(legacy.rows, []);
 });

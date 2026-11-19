@@ -3,7 +3,7 @@
 -- Bootstrap production applies every migration on every release, so each
 -- statement must be safe to re-run. Changes are additive: the 1.6 "type" and
 -- "public" columns on "oauthClient" stay, so the 1.6 release can still run
--- against this schema. A later migration drops them.
+-- against this schema. 0002 drops them.
 
 -- Signing key metadata.
 ALTER TABLE "jwks" ADD COLUMN IF NOT EXISTS "alg" text;
@@ -22,8 +22,18 @@ ALTER TABLE "oauthClient" ALTER COLUMN "disabled" SET DEFAULT false;
 
 -- Backfill per the 1.7 upgrade guide. Every Pior Labs client is a confidential
 -- "web" client using client_secret_post; none uses client_credentials.
-UPDATE "oauthClient" SET "applicationType" = "type"
-WHERE "applicationType" IS NULL AND "type" IN ('web', 'native');
+-- Migrations rerun on every release; 0002 drops "type", so only backfill
+-- while it exists.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'oauthClient' AND column_name = 'type'
+  ) THEN
+    UPDATE "oauthClient" SET "applicationType" = "type"
+    WHERE "applicationType" IS NULL AND "type" IN ('web', 'native');
+  END IF;
+END $$;
 UPDATE "oauthClient" SET "clientCredentialsScopes" = '{}' WHERE "clientCredentialsScopes" IS NULL;
 UPDATE "oauthClient" SET "dpopBoundAccessTokens" = false WHERE "dpopBoundAccessTokens" IS NULL;
 UPDATE "oauthClient" SET "disabled" = false WHERE "disabled" IS NULL;
