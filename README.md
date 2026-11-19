@@ -30,7 +30,7 @@ The provider is configured with:
 - trusted clients cached by ID: `finlens`, `cookbook`, `assistant`, and `tasks`
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
-- plain-HTTP redirect URIs allowed only for `http://localhost:5173`, the shared local development origin (`allowInsecureRedirectUri`). Better Auth 1.7 otherwise refuses HTTP redirect URIs for web clients, including localhost
+- plain-HTTP redirect URIs allowed only for `http://localhost:5173`, the shared local development origin (`allowInsecureRedirectUri`). Better Auth otherwise refuses HTTP redirect URIs for web clients, including localhost
 
 ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` custom claims. The UserInfo endpoint also returns `email` and `name`.
 
@@ -98,7 +98,7 @@ Every app that uses this SSO provider must be registered as a trusted OAuth clie
      myappClientSecret: requiredEnv("MYAPP_CLIENT_SECRET", "change-me-myapp"),
      ```
 
-2. **Add the client to `api/src/oauth-clients.ts`.** Give it a stable `clientId`, its canonical production `uri`, and the *exact* allowed callback URLs. Client apps run Better Auth 1.7, so the callback path is `/api/auth/callback/<provider-id>`. Include the canonical production hostname and localhost so the same client works in local testing:
+2. **Add the client to `api/src/oauth-clients.ts`.** Give it a stable `clientId`, its canonical production `uri`, and the *exact* allowed callback URLs. Client apps use Better Auth's generic OAuth plugin, so the callback path is `/api/auth/callback/<provider-id>`. Include the canonical production hostname and localhost so the same client works in local testing:
    ```ts
    {
      clientId: "myapp",
