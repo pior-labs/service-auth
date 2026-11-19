@@ -4,7 +4,7 @@ Private household SSO provider for two users. This is a standalone service using
 
 ## Stack
 
-- API: Hono, TypeScript, Better Auth, `@better-auth/oauth-provider`
+- API: Hono, TypeScript, Better Auth, `@better-auth/oauth-provider`. `better-auth` and every `@better-auth/*` package are pinned to the same exact version (1.7.25, workspace ADR 0003) so the library and its schema cannot drift apart
 - DB: Drizzle schema on Postgres, using its own logical database named `auth`
 - Web: Vite, React, TypeScript, Tailwind v4, shadcn-style UI primitives
 - Runtime: the Node.js version in `.node-version`; Dockerfiles pin the same version by digest
@@ -30,6 +30,7 @@ The provider is configured with:
 - trusted clients cached by ID: `finlens`, `cookbook`, `assistant`, and `tasks`
 - no consent prompt for those trusted clients via seeded `skipConsent: true`
 - generous central sessions and refresh tokens, controlled by env
+- plain-HTTP redirect URIs allowed only for `http://localhost:5173`, the shared local development origin (`allowInsecureRedirectUri`). Better Auth 1.7 otherwise refuses HTTP redirect URIs for web clients, including localhost
 
 ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` custom claims. The UserInfo endpoint also returns `email` and `name`.
 
@@ -38,11 +39,15 @@ ID tokens include Better Auth's stable `sub` plus explicit `email` and `name` cu
 1. For local development, create a logical Postgres database named `auth`. Production database and role provisioning is owned by `pior-labs/platform-deploy`.
 2. Copy `.env.example` to `.env` and fill real application secrets, emails, and passwords, including the Finance, Cookbook, Assistant, and Tasks client secrets listed under [Seeding](#seeding).
 3. Install dependencies with `pnpm install` from this directory. `@pior-labs/design-system` comes from GitHub Packages: export a token with `read:packages` as `GITHUB_TOKEN` and add `//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}` to your user-level `~/.npmrc` (current pnpm ignores credentials in the committed `.npmrc`).
-4. Apply the checked-in migration with `pnpm db:migrate`.
+4. Apply the checked-in migrations with `pnpm db:migrate`. It runs every `api/drizzle/*.sql` file in name order, each in its own transaction, and production reruns it on every release, so each migration must be safe to re-run.
 5. Seed users and clients with `pnpm db:seed`.
 6. Run locally with `pnpm dev`, or build and start the containers with Docker Compose.
 
 Production uses the platform-generated connection file rather than a `DATABASE_URL` stored in GitHub. See [`docs/production.md`](docs/production.md).
+
+## Tests
+
+`pnpm test` runs the Python workflow tests in `tests/` and then the API's end-to-end provider test (`api/test/`). The API test creates a disposable `auth_test_*` database on a throwaway Docker PostgreSQL container, or on the local server in `TEST_DATABASE_URL` (a role with `CREATEDB`), and drops it afterwards; it never touches an existing database. It runs the real migrate, seed and API entrypoints and signs in the way client applications do: authorize with PKCE and a nonce, the login page's own client plugin, `client_secret_post` token exchange, EdDSA ID-token verification against discovery's JWKS, UserInfo and refresh, for every client and callback. It also covers `prompt=login`, refused callbacks and clients, token-endpoint failures, code replay and how the seed stores clients. Better Auth checks the Drizzle schema at startup, so a library upgrade without the matching migration fails this test.
 
 ## OpenID Connect endpoints
 
@@ -148,7 +153,7 @@ If arguments are omitted, the script prompts for the email and password. It hash
 
 ## Login Flow
 
-The only UI is the SPA login form. When Better Auth redirects an authorize request to `/sign-in`, submitting the form calls `authClient.signIn.email(...)`; then it calls `authClient.oauth2.continue({})` so the OAuth Provider plugin can complete the pending authorize flow and redirect back to the client app.
+The only UI is the SPA login form. When Better Auth redirects an authorize request to `/sign-in`, submitting the form calls `authClient.signIn.email(...)`. The OAuth Provider client plugin attaches the signed authorize query, so a successful sign-in completes the pending authorize request and returns the redirect back to the client app, which the browser follows. The form then calls `authClient.oauth2.continue({})` as a fallback for flows that need another step.
 
 No signup UI, password reset UI, email sending, social login, MFA, admin UI, orgs, or client-app integration code is included.
 
