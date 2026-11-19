@@ -71,10 +71,6 @@ for (const client of oauthClients) {
     responseTypes: ["code"],
     applicationType: "web",
     clientCredentialsScopes: [],
-    // Better Auth 1.6 fields, ignored by 1.7. Still written so a rollback to the
-    // 1.6 release keeps working; removed with the columns in a later migration.
-    public: false,
-    type: "web",
     requirePKCE: true,
     metadata: { trusted: true },
     updatedAt: new Date(),

@@ -370,12 +370,15 @@ test("a wrong password does not sign in or continue the OAuth flow", async () =>
 
 test("seed stores hashed client secrets and only Better Auth 1.7 callbacks", async () => {
   const { rows } = await fixture.db.query(
-    'select "clientId", "clientSecret", "redirectUris" from "oauthClient" order by "clientId"',
+    'select "clientId", "clientSecret", "redirectUris", "applicationType", "tokenEndpointAuthMethod", "clientCredentialsScopes" from "oauthClient" order by "clientId"',
   );
   assert.deepEqual(rows.map((row) => row.clientId), ["assistant", "cookbook", "finlens", "tasks"]);
   for (const row of rows) {
     const secret = clientSecrets[row.clientId as keyof typeof clientSecrets];
     assert.equal(row.clientSecret, createHash("sha256").update(secret).digest("base64url"));
     assert.ok(row.redirectUris.every((uri: string) => uri.endsWith("/api/auth/callback/auth-pior")));
+    assert.equal(row.applicationType, "web");
+    assert.equal(row.tokenEndpointAuthMethod, "client_secret_post");
+    assert.deepEqual(row.clientCredentialsScopes, []);
   }
 });

@@ -81,11 +81,6 @@ export const oauthClient = pgTable("oauthClient", {
   jwksUri: text("jwksUri"),
   grantTypes: text("grantTypes").array(),
   responseTypes: text("responseTypes").array(),
-  // Better Auth 1.6 columns, replaced by applicationType and
-  // tokenEndpointAuthMethod in 1.7. Kept so a rollback to 1.6 still runs;
-  // a later migration drops them.
-  public: boolean("public"),
-  type: text("type"),
   requirePKCE: boolean("requirePKCE"),
   dpopBoundAccessTokens: boolean("dpopBoundAccessTokens").default(false),
   metadata: jsonb("metadata"),
