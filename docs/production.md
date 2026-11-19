@@ -44,19 +44,17 @@ Do not store `DATABASE_URL`, a database password, or `POSTGRES_ADMIN_URL` in Git
 
 Leaving `VITE_AUTH_BASE_URL` blank makes the SPA use whichever Auth origin served it. The canonical OAuth issuer is `https://auth.szarans.ca/api/auth`.
 
-The seeded FinLens client accepts these production callback URLs (Better Auth 1.6 and 1.7 paths during the upgrade):
+The seeded FinLens client accepts this production callback URL:
 
 ```text
-https://finance.szarans.ca/api/auth/oauth2/callback/auth-pior
 https://finance.szarans.ca/api/auth/callback/auth-pior
 ```
 
 The exact `FINLENS_CLIENT_SECRET` value must also be configured in the Finance production environment.
 
-The seeded Cookbook client accepts these production callback URLs (Better Auth 1.6 and 1.7 paths during the upgrade):
+The seeded Cookbook client accepts this production callback URL:
 
 ```text
-https://cookbook.szarans.ca/api/auth/oauth2/callback/auth-pior
 https://cookbook.szarans.ca/api/auth/callback/auth-pior
 ```
 
@@ -203,12 +201,9 @@ The runner user does not need the database connection string in GitHub. Docker m
 
 The `tasks` client uses `TASKS_CLIENT_SECRET` from private Auth configuration
 (a separate GitHub Actions secret in production), matching Tasks' server-only
-`CENTRAL_AUTH_CLIENT_SECRET`. These exact callbacks are registered (Better Auth
-1.6 and 1.7 paths during the upgrade, workspace ADR 0003):
+`CENTRAL_AUTH_CLIENT_SECRET`. These exact callbacks are registered:
 
-- `http://localhost:5173/api/auth/oauth2/callback/auth-pior`
 - `http://localhost:5173/api/auth/callback/auth-pior`
-- `https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior`
 - `https://tasks.szarans.ca/api/auth/callback/auth-pior`
 
 Before activating this change, set the separate `TASKS_CLIENT_SECRET` secret
