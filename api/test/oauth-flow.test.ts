@@ -204,6 +204,10 @@ test("discovery publishes the issuer, endpoints and EdDSA keys the applications 
   assert.equal(discovery.userinfo_endpoint, `${fixture.issuer}/oauth2/userinfo`);
   assert.equal(discovery.end_session_endpoint, `${fixture.issuer}/oauth2/end-session`);
   assert.deepEqual(discovery.id_token_signing_alg_values_supported, ["EdDSA"]);
+  // The same fields scripts/verify-discovery.ts checks after every deploy.
+  assert.ok(discovery.response_types_supported.includes("code"));
+  assert.ok(discovery.subject_types_supported.includes("public"));
+  assert.ok(discovery.scopes_supported.includes("openid"));
   assert.equal(discovery.authorization_response_iss_parameter_supported, true);
   assert.ok(discovery.code_challenge_methods_supported.includes("S256"));
   assert.ok(discovery.token_endpoint_auth_methods_supported.includes("client_secret_post"));
@@ -297,6 +301,10 @@ test("unregistered and Better Auth 1.6 callback URLs are refused", async () => {
     "http://localhost:5173/api/auth/oauth2/callback/auth-pior",
     "https://tasks.szarans.ca/api/auth/oauth2/callback/auth-pior",
     "https://evil.example/api/auth/callback/auth-pior",
+    // Plain HTTP is allowed only for the shared local development origin.
+    "http://localhost:5174/api/auth/callback/auth-pior",
+    "http://127.0.0.1:5173/api/auth/callback/auth-pior",
+    "http://tasks.szarans.ca/api/auth/callback/auth-pior",
     // Another client's callback must not be accepted for this client.
     callback("https://finance.szarans.ca"),
   ]) {

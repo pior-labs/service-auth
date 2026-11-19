@@ -1,4 +1,4 @@
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth";
 import { jwt } from "better-auth/plugins";
@@ -6,7 +6,7 @@ import { db } from "./db/index.js";
 import * as schema from "./db/schema.js";
 import { env } from "./env.js";
 import { hashPassword, verifyPassword } from "./password.js";
-import { trustedClientIds } from "./oauth-clients.js";
+import { localDevelopmentOrigin, trustedClientIds } from "./oauth-clients.js";
 
 export const auth = betterAuth({
   baseURL: env.betterAuthUrl,
@@ -45,6 +45,7 @@ export const auth = betterAuth({
       consentPage: "/consent",
       scopes: ["openid", "profile", "email", "offline_access"],
       cachedTrustedClients: trustedClientIds,
+      allowInsecureRedirectUri: (url) => url.origin === localDevelopmentOrigin,
       accessTokenExpiresIn: env.accessTokenExpiresIn,
       idTokenExpiresIn: env.idTokenExpiresIn,
       refreshTokenExpiresIn: env.refreshTokenExpiresIn,

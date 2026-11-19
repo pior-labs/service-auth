@@ -10,12 +10,12 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "latest",
+    "@better-auth/oauth-provider": "1.7.25",
     "@pior-labs/design-system": "1.0.1",
     "@radix-ui/react-slot": "latest",
     "@tailwindcss/vite": "latest",
     "@vitejs/plugin-react": "latest",
-    "better-auth": "latest",
+    "better-auth": "1.7.25",
     "class-variance-authority": "latest",
     "clsx": "latest",
     "lucide-react": "latest",
@@ -28,7 +28,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "vite": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "vite": "latest"
   }
 }

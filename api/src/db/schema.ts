@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { boolean, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -51,11 +51,13 @@ export const oauthClient = pgTable("oauthClient", {
   id: text("id").primaryKey(),
   clientId: text("clientId").notNull().unique(),
   clientSecret: text("clientSecret"),
-  disabled: boolean("disabled"),
+  clientDiscoveryId: text("clientDiscoveryId"),
+  disabled: boolean("disabled").default(false),
   skipConsent: boolean("skipConsent"),
   enableEndSession: boolean("enableEndSession"),
   subjectType: text("subjectType"),
   scopes: text("scopes").array(),
+  clientCredentialsScopes: text("clientCredentialsScopes").array().default([]),
   userId: text("userId").references(() => user.id, { onDelete: "cascade" }),
   referenceId: text("referenceId"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow(),
@@ -71,41 +73,109 @@ export const oauthClient = pgTable("oauthClient", {
   softwareStatement: text("softwareStatement"),
   redirectUris: text("redirectUris").array().notNull(),
   postLogoutRedirectUris: text("postLogoutRedirectUris").array(),
+  backchannelLogoutUri: text("backchannelLogoutUri"),
+  backchannelLogoutSessionRequired: boolean("backchannelLogoutSessionRequired"),
   tokenEndpointAuthMethod: text("tokenEndpointAuthMethod"),
+  applicationType: text("applicationType"),
+  jwks: text("jwks"),
+  jwksUri: text("jwksUri"),
   grantTypes: text("grantTypes").array(),
   responseTypes: text("responseTypes").array(),
+  // Better Auth 1.6 columns, replaced by applicationType and
+  // tokenEndpointAuthMethod in 1.7. Kept so a rollback to 1.6 still runs;
+  // a later migration drops them.
   public: boolean("public"),
   type: text("type"),
   requirePKCE: boolean("requirePKCE"),
+  dpopBoundAccessTokens: boolean("dpopBoundAccessTokens").default(false),
   metadata: jsonb("metadata"),
 });
 
-export const oauthRefreshToken = pgTable("oauthRefreshToken", {
+export const oauthResource = pgTable("oauthResource", {
   id: text("id").primaryKey(),
-  token: text("token").notNull(),
-  clientId: text("clientId").notNull().references(() => oauthClient.clientId, { onDelete: "cascade" }),
-  sessionId: text("sessionId").references(() => session.id, { onDelete: "set null" }),
-  userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
-  referenceId: text("referenceId"),
-  scopes: text("scopes").array().notNull(),
-  revoked: timestamp("revoked", { withTimezone: true }),
-  authTime: timestamp("authTime", { withTimezone: true }),
-  createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+  identifier: text("identifier").notNull().unique(),
+  name: text("name").notNull(),
+  accessTokenTtl: integer("accessTokenTtl"),
+  refreshTokenTtl: integer("refreshTokenTtl"),
+  signingAlgorithm: text("signingAlgorithm"),
+  signingKeyId: text("signingKeyId"),
+  allowedScopes: text("allowedScopes").array(),
+  customClaims: jsonb("customClaims"),
+  dpopBoundAccessTokensRequired: boolean("dpopBoundAccessTokensRequired").default(false),
+  disabled: boolean("disabled").default(false),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow(),
+  policyVersion: integer("policyVersion").default(1),
+  metadata: jsonb("metadata"),
+});
+
+export const oauthClientResource = pgTable(
+  "oauthClientResource",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("clientId").notNull().references(() => oauthClient.clientId, { onDelete: "cascade" }),
+    resourceId: text("resourceId").notNull().references(() => oauthResource.identifier, { onDelete: "cascade" }),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("oauth_client_resource_client_resource_idx").on(table.clientId, table.resourceId),
+    index("oauth_client_resource_resource_idx").on(table.resourceId),
+  ],
+);
+
+// Replay protection for client assertion JWTs; the id is the assertion's jti.
+export const oauthClientAssertion = pgTable("oauthClientAssertion", {
+  id: text("id").primaryKey(),
   expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
 });
 
-export const oauthAccessToken = pgTable("oauthAccessToken", {
-  id: text("id").primaryKey(),
-  token: text("token").notNull().unique(),
-  clientId: text("clientId").notNull().references(() => oauthClient.clientId, { onDelete: "cascade" }),
-  sessionId: text("sessionId").references(() => session.id, { onDelete: "set null" }),
-  refreshId: text("refreshId").references(() => oauthRefreshToken.id, { onDelete: "cascade" }),
-  userId: text("userId").references(() => user.id, { onDelete: "cascade" }),
-  referenceId: text("referenceId"),
-  scopes: text("scopes").array().notNull(),
-  createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
-  expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
-});
+export const oauthRefreshToken = pgTable(
+  "oauthRefreshToken",
+  {
+    id: text("id").primaryKey(),
+    token: text("token").notNull().unique(),
+    clientId: text("clientId").notNull().references(() => oauthClient.clientId, { onDelete: "cascade" }),
+    sessionId: text("sessionId").references(() => session.id, { onDelete: "set null" }),
+    userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
+    referenceId: text("referenceId"),
+    authorizationCodeId: text("authorizationCodeId"),
+    resources: text("resources").array(),
+    requestedUserInfoClaims: text("requestedUserInfoClaims").array(),
+    scopes: text("scopes").array().notNull(),
+    revoked: timestamp("revoked", { withTimezone: true }),
+    rotatedAt: timestamp("rotatedAt", { withTimezone: true }),
+    rotationReplayResponse: text("rotationReplayResponse"),
+    rotationReplayExpiresAt: timestamp("rotationReplayExpiresAt", { withTimezone: true }),
+    authTime: timestamp("authTime", { withTimezone: true }),
+    confirmation: jsonb("confirmation"),
+    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("oauth_refresh_token_authorization_code_idx").on(table.authorizationCodeId)],
+);
+
+export const oauthAccessToken = pgTable(
+  "oauthAccessToken",
+  {
+    id: text("id").primaryKey(),
+    token: text("token").notNull().unique(),
+    clientId: text("clientId").notNull().references(() => oauthClient.clientId, { onDelete: "cascade" }),
+    sessionId: text("sessionId").references(() => session.id, { onDelete: "set null" }),
+    refreshId: text("refreshId").references(() => oauthRefreshToken.id, { onDelete: "cascade" }),
+    userId: text("userId").references(() => user.id, { onDelete: "cascade" }),
+    referenceId: text("referenceId"),
+    authorizationCodeId: text("authorizationCodeId"),
+    resources: text("resources").array(),
+    requestedUserInfoClaims: text("requestedUserInfoClaims").array(),
+    scopes: text("scopes").array().notNull(),
+    revoked: timestamp("revoked", { withTimezone: true }),
+    confirmation: jsonb("confirmation"),
+    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("oauth_access_token_authorization_code_idx").on(table.authorizationCodeId)],
+);
 
 export const oauthConsent = pgTable(
   "oauthConsent",
@@ -114,6 +184,8 @@ export const oauthConsent = pgTable(
     userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
     clientId: text("clientId").notNull().references(() => oauthClient.clientId, { onDelete: "cascade" }),
     referenceId: text("referenceId"),
+    resources: text("resources").array(),
+    requestedUserInfoClaims: text("requestedUserInfoClaims").array(),
     scopes: text("scopes").array().notNull(),
     createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
@@ -127,6 +199,8 @@ export const jwks = pgTable("jwks", {
   privateKey: text("privateKey").notNull(),
   createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expiresAt", { withTimezone: true }),
+  alg: text("alg"),
+  crv: text("crv"),
 });
 
 export const userRelations = relations(user, ({ many }) => ({

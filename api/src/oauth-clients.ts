@@ -52,3 +52,10 @@ export const oauthClients = [
 ] as const;
 
 export const trustedClientIds = new Set(oauthClients.map((client) => client.clientId));
+
+// Applications run locally on this one origin (platform local development
+// convention). Better Auth 1.7 refuses plain-HTTP redirect URIs for web
+// clients, including localhost, unless allowed explicitly. A localhost
+// callback never leaves the developer's machine, and redirect URIs must still
+// match a registered value exactly.
+export const localDevelopmentOrigin = "http://localhost:5173";

@@ -63,7 +63,7 @@ export async function createFixture() {
   let client: pg.Client | undefined;
 
   async function close() {
-    if (server && server.exitCode === null) {
+    if (server && server.exitCode === null && server.signalCode === null) {
       server.kill("SIGTERM");
       await new Promise((resolve) => server!.once("exit", resolve));
     }
@@ -118,12 +118,13 @@ export async function createFixture() {
     run("scripts/seed.ts", env);
     run("scripts/seed.ts", env);
 
-    server = spawn("pnpm", ["exec", "tsx", "src/index.ts"], { cwd: apiDir, env, stdio: "pipe" });
+    // Run node directly, not through pnpm, so SIGTERM stops the server itself.
+    server = spawn(process.execPath, ["--import", "tsx", "src/index.ts"], { cwd: apiDir, env, stdio: "pipe" });
     let output = "";
     server.stdout?.on("data", (chunk) => (output += chunk));
     server.stderr?.on("data", (chunk) => (output += chunk));
     for (let attempt = 0; ; attempt++) {
-      if (server.exitCode !== null) throw new Error(`auth api exited:\n${output}`);
+      if (server.exitCode !== null || server.signalCode !== null) throw new Error(`auth api exited:\n${output}`);
       const healthy = await fetch(`${origin}/health`).then((r) => r.ok).catch(() => false);
       if (healthy) break;
       if (attempt >= 120) throw new Error(`auth api did not start:\n${output}`);

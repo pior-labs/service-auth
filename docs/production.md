@@ -153,6 +153,10 @@ The workflow:
 8. verifies `/health` and `/sign-in` through production Caddy at `https://auth.szarans.ca`
 9. requires HTTP 200 from the exact public `/api/auth/.well-known/openid-configuration` endpoint and validates its JSON, canonical issuer, endpoint URLs, and OIDC capabilities
 
+Both Bootstrap and Deploy run `dist/scripts/migrate.js`, which applies every
+`api/drizzle/*.sql` file in order; each migration must be safe to re-run. Only
+Bootstrap seeds, and only Deploy recreates the running services.
+
 Both images install dependencies from `pnpm-lock.yaml` with `--frozen-lockfile`.
 Dependency upgrades must update the lockfile and reconcile any Better Auth schema
 changes before deployment. Installing `latest` without the lockfile previously

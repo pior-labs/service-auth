@@ -15,10 +15,9 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "latest",
-    "@better-auth/oauth-provider": "latest",
+    "@better-auth/oauth-provider": "1.7.25",
     "@hono/node-server": "latest",
-    "better-auth": "latest",
+    "better-auth": "1.7.25",
     "dotenv": "latest",
     "drizzle-orm": "latest",
     "hono": "latest",
